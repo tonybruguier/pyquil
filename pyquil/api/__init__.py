@@ -40,7 +40,6 @@ __all__ = [
     "get_benchmarker",
 ]
 
-from pyquil.api._base_connection import ForestConnection
 from pyquil.api._benchmark import BenchmarkConnection, get_benchmarker
 from pyquil.api._compiler import QVMCompiler, QPUCompiler
 from pyquil.api._error_reporting import pyquil_protect

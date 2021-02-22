@@ -1,18 +1,19 @@
 import numpy as np
 import pytest
+from httpx import Client
 
 from rpcq.messages import PyQuilExecutableResponse
 
 from pyquil import Program
-from pyquil.api import ForestConnection, QVM
+from pyquil.api import QVM
 from pyquil.api._compiler import _extract_program_from_pyquil_executable_response
 from pyquil.api._errors import QVMError
 from pyquil.gates import MEASURE, X, CNOT, H
 from pyquil.quilbase import Declare, MemoryReference
 
 
-def test_qvm_run_pqer(forest: ForestConnection):
-    qvm = QVM(connection=forest, gate_noise=[0.01] * 3)
+def test_qvm_run_pqer(qcs_client: Client):
+    qvm = QVM(client=qcs_client, gate_noise=[0.01] * 3)
     p = Program(Declare("ro", "BIT"), X(0), MEASURE(0, MemoryReference("ro")))
     p.wrap_in_numshots_loop(1000)
     nq = PyQuilExecutableResponse(program=p.out(), attributes={"num_shots": 1000})
@@ -24,8 +25,8 @@ def test_qvm_run_pqer(forest: ForestConnection):
     assert np.mean(bitstrings) > 0.8
 
 
-def test_qvm_run_just_program(forest: ForestConnection):
-    qvm = QVM(connection=forest, gate_noise=[0.01] * 3)
+def test_qvm_run_just_program(qcs_client: Client):
+    qvm = QVM(client=qcs_client, gate_noise=[0.01] * 3)
     p = Program(Declare("ro", "BIT"), X(0), MEASURE(0, MemoryReference("ro")))
     p.wrap_in_numshots_loop(1000)
     qvm.load(p)
@@ -36,8 +37,8 @@ def test_qvm_run_just_program(forest: ForestConnection):
     assert np.mean(bitstrings) > 0.8
 
 
-def test_qvm_run_only_pqer(forest: ForestConnection):
-    qvm = QVM(connection=forest, gate_noise=[0.01] * 3, requires_executable=True)
+def test_qvm_run_only_pqer(qcs_client: Client):
+    qvm = QVM(client=qcs_client, gate_noise=[0.01] * 3, requires_executable=True)
     p = Program(Declare("ro", "BIT"), X(0), MEASURE(0, MemoryReference("ro")))
     p.wrap_in_numshots_loop(1000)
 
@@ -56,8 +57,8 @@ def test_qvm_run_only_pqer(forest: ForestConnection):
     assert np.mean(bitstrings) > 0.8
 
 
-def test_qvm_run_region_declared_and_measured(forest: ForestConnection):
-    qvm = QVM(connection=forest)
+def test_qvm_run_region_declared_and_measured(qcs_client: Client):
+    qvm = QVM(client=qcs_client)
     p = Program(Declare("reg", "BIT"), X(0), MEASURE(0, MemoryReference("reg")))
     nq = PyQuilExecutableResponse(program=p.out(), attributes={"num_shots": 100})
     qvm.load(nq).run().wait()
@@ -65,8 +66,8 @@ def test_qvm_run_region_declared_and_measured(forest: ForestConnection):
     assert bitstrings.shape == (100, 1)
 
 
-def test_qvm_run_region_declared_not_measured(forest: ForestConnection):
-    qvm = QVM(connection=forest)
+def test_qvm_run_region_declared_not_measured(qcs_client: Client):
+    qvm = QVM(client=qcs_client)
     p = Program(Declare("reg", "BIT"), X(0))
     nq = PyQuilExecutableResponse(program=p.out(), attributes={"num_shots": 100})
     qvm.load(nq).run().wait()
@@ -75,8 +76,8 @@ def test_qvm_run_region_declared_not_measured(forest: ForestConnection):
 
 
 # For backwards compatibility, we support omitting the declaration for "ro" specifically
-def test_qvm_run_region_not_declared_is_measured_ro(forest: ForestConnection):
-    qvm = QVM(connection=forest)
+def test_qvm_run_region_not_declared_is_measured_ro(qcs_client: Client):
+    qvm = QVM(client=qcs_client)
     p = Program(X(0), MEASURE(0, MemoryReference("ro")))
     nq = PyQuilExecutableResponse(program=p.out(), attributes={"num_shots": 100})
     qvm.load(nq).run().wait()
@@ -84,8 +85,8 @@ def test_qvm_run_region_not_declared_is_measured_ro(forest: ForestConnection):
     assert bitstrings.shape == (100, 1)
 
 
-def test_qvm_run_region_not_declared_is_measured_non_ro(forest: ForestConnection):
-    qvm = QVM(connection=forest)
+def test_qvm_run_region_not_declared_is_measured_non_ro(qcs_client: Client):
+    qvm = QVM(client=qcs_client)
     p = Program(X(0), MEASURE(0, MemoryReference("reg")))
     nq = PyQuilExecutableResponse(program=p.out(), attributes={"num_shots": 100})
 
@@ -93,8 +94,8 @@ def test_qvm_run_region_not_declared_is_measured_non_ro(forest: ForestConnection
         qvm.load(nq).run().wait()
 
 
-def test_qvm_run_region_not_declared_not_measured_ro(forest: ForestConnection):
-    qvm = QVM(connection=forest)
+def test_qvm_run_region_not_declared_not_measured_ro(qcs_client: Client):
+    qvm = QVM(client=qcs_client)
     p = Program(X(0))
     nq = PyQuilExecutableResponse(program=p.out(), attributes={"num_shots": 100})
     qvm.load(nq).run().wait()
@@ -102,8 +103,8 @@ def test_qvm_run_region_not_declared_not_measured_ro(forest: ForestConnection):
     assert bitstrings.shape == (100, 0)
 
 
-def test_qvm_run_region_not_declared_not_measured_non_ro(forest: ForestConnection):
-    qvm = QVM(connection=forest)
+def test_qvm_run_region_not_declared_not_measured_non_ro(qcs_client: Client):
+    qvm = QVM(client=qcs_client)
     p = Program(X(0))
     nq = PyQuilExecutableResponse(program=p.out(), attributes={"num_shots": 100})
     qvm.load(nq).run().wait()
@@ -118,8 +119,8 @@ def test_roundtrip_pyquilexecutableresponse(compiler):
         assert i1 == i2
 
 
-def test_qvm_version(forest: ForestConnection):
-    qvm = QVM(connection=forest)
+def test_qvm_version(qcs_client: Client):
+    qvm = QVM(client=qcs_client)
     version = qvm.get_version_info()
 
     def is_a_version_string(version_string: str):

@@ -8,7 +8,6 @@ from pyquil.parser import parse
 from pyquil import Program, get_qc
 from pyquil.api import QuantumComputer, QPU, QPUCompiler
 from pyquil.api._base_connection import Engagement, get_session
-from pyquil.api._config import PyquilConfig
 from pyquil.device import NxDevice
 from pyquil.gates import I, X
 from pyquil.quilatom import Expression

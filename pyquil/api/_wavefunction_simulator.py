@@ -18,7 +18,6 @@ from warnings import warn
 
 import numpy as np
 
-from pyquil.api._base_connection import ForestConnection
 from pyquil.api._error_reporting import _record_call
 from pyquil.paulis import PauliSum, PauliTerm
 from pyquil.quil import Program, percolate_declares
@@ -30,7 +29,7 @@ from pyquil.wavefunction import Wavefunction
 class WavefunctionSimulator:
     @_record_call
     def __init__(
-        self, connection: Optional[ForestConnection] = None, random_seed: Optional[int] = None
+        self, random_seed: Optional[int] = None
     ) -> None:
         """
         A simulator that propagates a wavefunction representation of a quantum state.
@@ -39,10 +38,6 @@ class WavefunctionSimulator:
         :param random_seed: A seed for the simulator's random number generators. Either None (for
             an automatically generated seed) or a non-negative integer.
         """
-        if connection is None:
-            connection = ForestConnection()
-
-        self.connection = connection
 
         if random_seed is None:
             self.random_seed = None

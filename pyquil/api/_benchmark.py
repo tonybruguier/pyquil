@@ -24,7 +24,6 @@ from rpcq.messages import (
     ConjugateByCliffordResponse,
 )
 
-from pyquil.api._config import PyquilConfig
 from pyquil.api._error_reporting import _record_call
 from pyquil.api._qac import AbstractBenchmarker
 from pyquil.paulis import PauliTerm, is_identity

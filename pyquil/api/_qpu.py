@@ -23,7 +23,6 @@ from rpcq._client import Client, ClientAuthConfig
 from rpcq.messages import QuiltBinaryExecutableResponse, QPURequest, ParameterAref, ParameterSpec
 
 from pyquil.parser import parse
-from pyquil.api._base_connection import Engagement, ForestSession
 from pyquil.api._error_reporting import _record_call
 from pyquil.api._errors import UserMessageError
 from pyquil.api._logger import logger
@@ -103,9 +102,7 @@ class QPU(QAM):
         self,
         endpoint: Optional[str] = None,
         user: str = "pyquil-user",
-        priority: int = 1,
-        *,
-        session: Optional[ForestSession] = None,
+        priority: int = 1
     ) -> None:
         """
         A connection to the QPU.
@@ -118,16 +115,11 @@ class QPU(QAM):
                          integers correspond to higher priority.
         :param session: ForestSession object, which manages engagement and configuration.
         """
-        if not (session or endpoint):
-            raise ValueError("QPU requires either `session` or `endpoint`.")
-
-        self.session = session
 
         self.endpoint = endpoint
         self.priority = priority
         self.user = user
         self._client: Optional[Client] = None
-        self._client_engagement: Optional[Engagement] = None
         self._last_results: Dict[str, np.ndarray] = {}
 
         super().__init__()

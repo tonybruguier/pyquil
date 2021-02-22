@@ -27,10 +27,7 @@ import networkx as nx
 import numpy as np
 from rpcq.messages import QuiltBinaryExecutableResponse, PyQuilExecutableResponse
 
-from pyquil.api._base_connection import ForestConnection, get_session
 from pyquil.api._compiler import QPUCompiler, QVMCompiler
-from pyquil.api._config import PyquilConfig
-from pyquil.api._devices import get_lattice, list_lattices
 from pyquil.api._error_reporting import _record_call
 from pyquil.api._qac import AbstractCompiler
 from pyquil.api._qam import QAM
@@ -515,7 +512,7 @@ class QuantumComputer:
 
 @_record_call
 def list_quantum_computers(
-    connection: Optional[ForestConnection] = None, qpus: bool = True, qvms: bool = True
+    qpus: bool = True, qvms: bool = True
 ) -> List[str]:
     """
     List the names of available quantum computers
@@ -527,12 +524,9 @@ def list_quantum_computers(
     :param qpus: Whether to include QPU's in the list.
     :param qvms: Whether to include QVM's in the list.
     """
-    if connection is None:
-        connection = ForestConnection()
-
     qc_names: List[str] = []
     if qpus:
-        qc_names += list(list_lattices(connection=connection).keys())
+        qc_names += []# list(list_lattices(connection=connection).keys()) TODO: use qcs client
 
     if qvms:
         qc_names += ["9q-square-qvm", "9q-square-noisy-qvm"]
@@ -613,14 +607,13 @@ def _canonicalize_name(prefix: str, qvm_type: Optional[str], noisy: bool) -> str
 
 def _get_qvm_or_pyqvm(
     qvm_type: str,
-    connection: ForestConnection,
     noise_model: Optional[NoiseModel] = None,
     device: Optional[AbstractDevice] = None,
     requires_executable: bool = False,
 ) -> Union[QVM, PyQVM]:
     if qvm_type == "qvm":
         return QVM(
-            connection=connection, noise_model=noise_model, requires_executable=requires_executable
+            noise_model=noise_model, requires_executable=requires_executable
         )
     elif qvm_type == "pyqvm":
         assert device is not None
@@ -635,7 +628,6 @@ def _get_qvm_qc(
     device: AbstractDevice,
     noise_model: Optional[NoiseModel] = None,
     requires_executable: bool = False,
-    connection: Optional[ForestConnection] = None,
     compiler_timeout: float = 10,
 ) -> QuantumComputer:
     """Construct a QuantumComputer backed by a QVM.
@@ -653,21 +645,18 @@ def _get_qvm_qc(
         the default values for URL endpoints will be used.
     :return: A QuantumComputer backed by a QVM with the above options.
     """
-    if connection is None:
-        connection = ForestConnection()
 
     return QuantumComputer(
         name=name,
         qam=_get_qvm_or_pyqvm(
             qvm_type=qvm_type,
-            connection=connection,
             noise_model=noise_model,
             device=device,
             requires_executable=requires_executable,
         ),
         device=device,
         compiler=QVMCompiler(
-            device=device, endpoint=connection.compiler_endpoint, timeout=compiler_timeout
+            device=device, endpoint="TODO", timeout=compiler_timeout  # TODO: replace endpoint
         ),
     )
 
@@ -677,7 +666,6 @@ def _get_qvm_with_topology(
     topology: nx.Graph,
     noisy: bool = False,
     requires_executable: bool = True,
-    connection: Optional[ForestConnection] = None,
     qvm_type: str = "qvm",
     compiler_timeout: float = 10,
 ) -> QuantumComputer:
@@ -719,7 +707,6 @@ def _get_qvm_with_topology(
 def _get_9q_square_qvm(
     name: str,
     noisy: bool,
-    connection: Optional[ForestConnection] = None,
     qvm_type: str = "qvm",
     compiler_timeout: float = 10,
 ) -> QuantumComputer:
@@ -751,7 +738,6 @@ def _get_unrestricted_qvm(
     name: str,
     noisy: bool,
     n_qubits: int = 34,
-    connection: Optional[ForestConnection] = None,
     qvm_type: str = "qvm",
     compiler_timeout: float = 10,
 ) -> QuantumComputer:
@@ -770,7 +756,6 @@ def _get_unrestricted_qvm(
     topology = nx.complete_graph(n_qubits)
     return _get_qvm_with_topology(
         name=name,
-        connection=connection,
         topology=topology,
         noisy=noisy,
         requires_executable=False,
@@ -783,7 +768,6 @@ def _get_qvm_based_on_real_device(
     name: str,
     device: Device,
     noisy: bool,
-    connection: Optional[ForestConnection] = None,
     qvm_type: str = "qvm",
     compiler_timeout: float = 10,
 ) -> QuantumComputer:
@@ -806,7 +790,6 @@ def _get_qvm_based_on_real_device(
         noise_model = None
     return _get_qvm_qc(
         name=name,
-        connection=connection,
         device=device,
         noise_model=noise_model,
         requires_executable=True,
@@ -821,7 +804,6 @@ def get_qc(
     *,
     as_qvm: Optional[bool] = None,
     noisy: Optional[bool] = None,
-    connection: Optional[ForestConnection] = None,
     compiler_timeout: float = 10,
 ) -> QuantumComputer:
     """
@@ -908,7 +890,6 @@ def get_qc(
             raise ValueError("Please name a valid device or run as a QVM")
         return _get_unrestricted_qvm(
             name=name,
-            connection=connection,
             noisy=noisy,
             n_qubits=n_qubits,
             qvm_type=qvm_type,
@@ -924,42 +905,37 @@ def get_qc(
             raise ValueError("The device '9q-square' is only available as a QVM")
         return _get_9q_square_qvm(
             name=name,
-            connection=connection,
             noisy=noisy,
             qvm_type=qvm_type,
             compiler_timeout=compiler_timeout,
         )
 
     # 4. Not a special case, query the web for information about this device.
-    device = get_lattice(prefix)
+    device = None  # get_lattice(prefix) TODO: replace with client call
     if qvm_type is not None:
         # 4.1 QVM based on a real device.
         return _get_qvm_based_on_real_device(
             name=name,
             device=device,
             noisy=noisy,
-            connection=connection,
             qvm_type=qvm_type,
             compiler_timeout=compiler_timeout,
         )
     else:
         # 4.2 A real device
-        pyquil_config = PyquilConfig()
-        session = get_session(config=pyquil_config, lattice_name=prefix)
         if noisy is not None and noisy:
             warnings.warn(
                 "You have specified `noisy=True`, but you're getting a QPU. This flag "
                 "is meant for controlling noise models on QVMs."
             )
 
-        qpu = QPU(endpoint=None, user=pyquil_config.user_id, session=session)
+        qpu = QPU(endpoint=None)  #, user=pyquil_config.user_id, session=session) TODO: replace with client
 
         compiler = QPUCompiler(
             quilc_endpoint=None,
             qpu_compiler_endpoint=None,
             device=device,
             name=prefix,
-            session=session,
             timeout=compiler_timeout,
         )
 

@@ -2,16 +2,15 @@ import shutil
 
 import numpy as np
 import pytest
+from qcs_api_client.client import build_sync_client
 from requests import RequestException
 
 from pyquil.api import (
     QVMConnection,
     QVMCompiler,
-    ForestConnection,
     get_benchmarker,
     local_forest_runtime,
 )
-from pyquil.api._config import PyquilConfig
 from pyquil.api._errors import UnknownApiError
 from pyquil.api._compiler import QuilcNotRunning, QuilcVersionMismatch
 from pyquil.api._qvm import QVMNotRunning, QVMVersionMismatch
@@ -138,8 +137,9 @@ def qvm():
 @pytest.fixture()
 def compiler(test_device):
     try:
-        config = PyquilConfig()
-        compiler = QVMCompiler(endpoint=config.quilc_url, device=test_device, timeout=1)
+        # config = PyquilConfig()
+        quilc_url = "tcp://127.0.0.1:5555"  # TODO: use configured value
+        compiler = QVMCompiler(endpoint=quilc_url, device=test_device, timeout=1)
         compiler.quil_to_native_quil(Program(I(0)))
         return compiler
     except (RequestException, QuilcNotRunning, UnknownApiError, TimeoutError) as e:
@@ -149,13 +149,9 @@ def compiler(test_device):
 
 
 @pytest.fixture(scope="session")
-def forest():
-    try:
-        connection = ForestConnection()
-        connection._wavefunction(Program(I(0)), 52)
-        return connection
-    except (RequestException, UnknownApiError) as e:
-        return pytest.skip("This test requires a Forest connection: {}".format(e))
+def qcs_client():
+    with build_sync_client() as client:
+        yield client
 
 
 @pytest.fixture(scope="session")

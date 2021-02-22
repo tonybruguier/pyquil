@@ -33,7 +33,6 @@ from rpcq.messages import (
 )
 from urllib.parse import urljoin
 
-from pyquil.api._base_connection import ForestSession
 from pyquil.api._qac import AbstractCompiler
 from pyquil.api._error_reporting import _record_call
 from pyquil.api._errors import UserMessageError
@@ -193,13 +192,11 @@ class QPUCompiler(AbstractCompiler):
     @_record_call
     def __init__(
         self,
-        quilc_endpoint: Optional[str],
+        quilc_endpoint: Optional[str],  # TODO: remove these endpoints?
         qpu_compiler_endpoint: Optional[str],
         device: AbstractDevice,
         timeout: float = 10,
-        name: Optional[str] = None,
-        *,
-        session: Optional[ForestSession] = None,
+        name: Optional[str] = None
     ) -> None:
         """
         Client to communicate with the Compiler Server.
@@ -212,13 +209,6 @@ class QPUCompiler(AbstractCompiler):
         :param session: ForestSession object, which manages engagement and configuration.
         """
 
-        if not (session or (quilc_endpoint and qpu_compiler_endpoint)):
-            raise ValueError(
-                "QPUCompiler requires either `session` or both of `quilc_endpoint` and "
-                "`qpu_compiler_endpoint`."
-            )
-
-        self.session = session
         self.timeout = timeout
 
         if quilc_endpoint:
@@ -566,7 +556,6 @@ class HTTPCompilerClient:
     """
 
     endpoint: str
-    session: ForestSession
 
     def call(
         self, method: str, payload: Optional[Message] = None, *, rpc_timeout: float = 30

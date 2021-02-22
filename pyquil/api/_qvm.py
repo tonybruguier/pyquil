@@ -17,6 +17,7 @@ import warnings
 import numpy as np
 from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Union, cast
 
+from httpx import Client
 from requests.exceptions import ConnectionError
 from rpcq.messages import PyQuilExecutableResponse
 
@@ -25,12 +26,9 @@ from pyquil.api._base_connection import (
     validate_noise_probabilities,
     TYPE_MULTISHOT_MEASURE,
     TYPE_WAVEFUNCTION,
-    TYPE_EXPECTATION,
-    post_json,
-    ForestConnection,
+    TYPE_EXPECTATION, qvm_run_payload, post_json,
 )
 from pyquil.api._compiler import QVMCompiler, _extract_program_from_pyquil_executable_response
-from pyquil.api._config import PyquilConfig
 from pyquil.api._error_reporting import _record_call
 from pyquil.api._qam import QAM
 from pyquil.device._main import Device
@@ -430,7 +428,7 @@ class QVM(QAM):
     @_record_call
     def __init__(
         self,
-        connection: ForestConnection,
+        client: Client,
         noise_model: Optional[NoiseModel] = None,
         gate_noise: Optional[List[float]] = None,
         measurement_noise: Optional[List[float]] = None,
@@ -440,7 +438,7 @@ class QVM(QAM):
         """
         A virtual machine that classically emulates the execution of Quil programs.
 
-        :param connection: A connection to the Forest web API.
+        :param client: QCS client.
         :param noise_model: A noise model that describes noise to apply when emulating a program's
             execution.
         :param gate_noise: A list of three numbers [Px, Py, Pz] indicating the probability of an X,
@@ -470,7 +468,8 @@ http://pyquil.readthedocs.io/en/latest/noise_models.html#support-for-noisy-gates
             )
 
         self.noise_model = noise_model
-        self.connection = connection
+        self.client = client
+        self.qvm_url = "http://127.0.0.1:5000"  # TODO: use configured value (don't put on self)
 
         validate_noise_probabilities(gate_noise)
         validate_noise_probabilities(measurement_noise)
@@ -501,7 +500,14 @@ http://pyquil.readthedocs.io/en/latest/noise_models.html#support-for-noisy-gates
 
         :return: String with version information
         """
-        return cast(str, self.connection._qvm_get_version_info())
+
+        response = post_json(self.client, self.qvm_url, {"type": "version"})
+        split_version_string = response.text.split()
+        try:
+            qvm_version = split_version_string[0]
+        except ValueError:
+            raise TypeError(f"Malformed version string returned by the QVM: {response.text}")
+        return qvm_version
 
     @_record_call
     def load(self, executable: Union[Program, PyQuilExecutableResponse]) -> "QVM":
@@ -568,15 +574,18 @@ http://pyquil.readthedocs.io/en/latest/noise_models.html#support-for-noisy-gates
 
         quil_program = self.augment_program_with_memory_values(quil_program)
 
-        results = self.connection._qvm_run(
-            quil_program=quil_program,
-            classical_addresses=classical_addresses,
-            trials=trials,
-            measurement_noise=self.measurement_noise,
-            gate_noise=self.gate_noise,
-            random_seed=self.random_seed,
+        payload = qvm_run_payload(
+            quil_program,
+            classical_addresses,
+            trials,
+            self.measurement_noise,
+            self.gate_noise,
+            self.random_seed
         )
-        self._memory_results.update(results)
+        response = post_json(self.client, self.qvm_url + "/qvm", payload)
+        # TODO: check status code
+        ram: Dict[str, np.ndarray] = {key: np.array(val) for key, val in response.json().items()}
+        self._memory_results.update(ram)
 
         return self
 
@@ -596,5 +605,5 @@ http://pyquil.readthedocs.io/en/latest/noise_models.html#support-for-noisy-gates
         Reset the state of the underlying QAM, and the QVM connection information.
         """
         super().reset()
-        forest_connection = ForestConnection()
-        self.connection = forest_connection
+        # forest_connection = ForestConnection()
+        # self.connection = forest_connection
