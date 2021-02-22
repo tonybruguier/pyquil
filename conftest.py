@@ -2,6 +2,7 @@ import shutil
 
 import numpy as np
 import pytest
+from httpx import Client
 from qcs_api_client.client import build_sync_client
 from requests import RequestException
 
@@ -123,9 +124,9 @@ def test_device(device_raw):
 
 
 @pytest.fixture(scope="session")
-def qvm():
+def qvm(qcs_client: Client):
     try:
-        qvm = QVMConnection(random_seed=52)
+        qvm = QVMConnection(client=qcs_client, random_seed=52)
         qvm.run(Program(I(0)), [])
         return qvm
     except (RequestException, QVMNotRunning, UnknownApiError) as e:

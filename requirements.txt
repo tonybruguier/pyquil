@@ -24,7 +24,7 @@ pytest-xdist # parallel execution
 pytest-cov
 pytest-timeout
 pytest-rerunfailures
-requests-mock
+pytest-httpx
 
 # docs
 sphinx>=3.0.0

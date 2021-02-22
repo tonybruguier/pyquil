@@ -27,6 +27,7 @@ import networkx as nx
 import numpy as np
 import pytest
 import requests_mock
+from pytest_httpx import HTTPXMock
 from rpcq import Server
 from rpcq.messages import QuiltBinaryExecutableRequest, QuiltBinaryExecutableResponse
 
@@ -116,23 +117,23 @@ def test_sync_run(qvm: QVMConnection):
         qvm.run(EMPTY_PROGRAM)
 
 
-def test_sync_run_and_measure_mock(qvm: QVMConnection):
+def test_sync_run_and_measure_mock(qvm: QVMConnection, httpx_mock: HTTPXMock):
     mock_qvm = qvm
     mock_endpoint = mock_qvm.sync_endpoint
-
-    def mock_response(request, context):
-        assert json.loads(request.text) == {
+    httpx_mock.add_response(
+        method="POST",
+        url=mock_endpoint + "/qvm",
+        match_content=json.dumps({
             "type": "multishot-measure",
             "qubits": [0, 1],
             "trials": 2,
             "compiled-quil": "H 0\nCNOT 0 1\n",
             "rng-seed": 52,
-        }
-        return "[[0,0],[1,1]]"
+        }).encode(),
+        json=[[0, 0], [1, 1]]
+    )
 
-    with requests_mock.Mocker() as m:
-        m.post(mock_endpoint + "/qvm", text=mock_response)
-        assert mock_qvm.run_and_measure(BELL_STATE, [0, 1], trials=2) == [[0, 0], [1, 1]]
+    assert mock_qvm.run_and_measure(BELL_STATE, [0, 1], trials=2) == [[0, 0], [1, 1]]
 
     with pytest.raises(ValueError):
         mock_qvm.run_and_measure(EMPTY_PROGRAM, [0])
@@ -263,7 +264,7 @@ def test_prepare_register_list():
 # ---------------------
 
 
-def test_get_qc_returns_remote_qvm_compiler(qvm: QVMConnection, compiler: QVMCompiler):
+def test_get_qc_returns_remote_qvm_compiler():
     with patch.dict("os.environ", {"COMPILER_URL": "tcp://192.168.0.0:5550"}):
         qc = get_qc("9q-square-qvm")
         assert isinstance(qc.compiler, QVMCompiler)
@@ -318,14 +319,6 @@ def test_quil_to_native_quil(compiler):
     from pyquil.simulation.tools import scale_out_phase
 
     assert np.allclose(p_unitary, scale_out_phase(compiled_p_unitary, p_unitary))
-
-
-@pytest.mark.skip(reason="Deprecated.")
-def test_native_quil_to_binary(server, mock_qpu_compiler):
-    p = COMPILED_BELL_STATE.copy()
-    p.wrap_in_numshots_loop(10)
-    response = mock_qpu_compiler.native_quil_to_executable(p)
-    assert response.program == COMPILED_BYTES_ARRAY
 
 
 def test_local_rb_sequence(benchmarker):

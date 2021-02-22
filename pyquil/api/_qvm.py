@@ -71,6 +71,7 @@ class QVMConnection(object):
     @_record_call
     def __init__(
         self,
+        client: Client,  # TODO: optional?
         device: Optional[Device] = None,
         endpoint: Optional[str] = None,
         gate_noise: Optional[List[float]] = None,
@@ -82,6 +83,7 @@ class QVMConnection(object):
         Constructor for QVMConnection. Sets up any necessary security, and establishes the noise
         model to use.
 
+        :param client: QCS client.
         :param device: The optional device, from which noise will be added by default to all
             programs run on this instance.
         :param endpoint: The endpoint of the server for running small jobs
@@ -93,12 +95,14 @@ class QVMConnection(object):
             automatically generated seed) or a non-negative integer.
         """
         if endpoint is None:
-            pyquil_config = PyquilConfig()
-            endpoint = pyquil_config.qvm_url
+            # pyquil_config = PyquilConfig()
+            qvm_url = "http://127.0.0.1:5000"  # TODO: use configured value
+            endpoint = qvm_url
 
         if compiler_endpoint is None:
-            pyquil_config = PyquilConfig()
-            compiler_endpoint = pyquil_config.quilc_url
+            # pyquil_config = PyquilConfig()
+            quilc_url = "tcp://127.0.0.1:5555"  # TODO: use configured value
+            compiler_endpoint = quilc_url
 
         if (device is not None and device.noise_model is not None) and (
             gate_noise is not None or measurement_noise is not None
@@ -139,8 +143,9 @@ programs run on this QVM.
         else:
             raise TypeError("random_seed should be None or a non-negative int")
 
-        self._connection = ForestConnection(sync_endpoint=endpoint)
-        self.session = self._connection.session  # backwards compatibility
+        # self._connection = ForestConnection(sync_endpoint=endpoint)
+        # self.session = self._connection.session  # backwards compatibility
+        self.client = client
         self.connect()
 
     def connect(self) -> None:
@@ -148,7 +153,7 @@ programs run on this QVM.
             version_dict = self.get_version_info()
             check_qvm_version(version_dict)
         except ConnectionError:
-            raise QVMNotRunning(f"No QVM server running at {self._connection.sync_endpoint}")
+            raise QVMNotRunning(f"No QVM server running at {self.sync_endpoint}")
 
     @_record_call
     def get_version_info(self) -> str:
@@ -157,7 +162,15 @@ programs run on this QVM.
 
         :return: String with version information
         """
-        return cast(str, self._connection._qvm_get_version_info())
+
+        # TODO: dry this up? (wrt QVM.get_version_info())
+        response = post_json(self.client, self.sync_endpoint, {"type": "version"})
+        split_version_string = response.text.split()
+        try:
+            qvm_version = split_version_string[0]
+        except ValueError:
+            raise TypeError(f"Malformed version string returned by the QVM: {response.text}")
+        return qvm_version
 
     @_record_call
     def run(
@@ -187,14 +200,17 @@ programs run on this QVM.
         else:
             caddresses = {"ro": classical_addresses}
 
-        buffers = self._connection._qvm_run(
+        payload = qvm_run_payload(
             quil_program,
             caddresses,
             trials,
             self.measurement_noise,
             self.gate_noise,
-            self.random_seed,
+            self.random_seed
         )
+        response = post_json(self.client, self.sync_endpoint + "/qvm", payload)
+        # TODO: check status code
+        buffers: Dict[str, np.ndarray] = {key: np.array(val) for key, val in response.json().items()}
 
         if len(buffers) == 0:
             return []
@@ -231,7 +247,7 @@ programs run on this QVM.
 
         payload = self._run_and_measure_payload(quil_program, qubits, trials)
         assert self.sync_endpoint is not None
-        response = post_json(self.session, self.sync_endpoint + "/qvm", payload)
+        response = post_json(self.client, self.sync_endpoint + "/qvm", payload)
         return cast(List[List[int]], response.json())
 
     @_record_call
@@ -288,7 +304,7 @@ programs run on this QVM.
 
         payload = self._wavefunction_payload(quil_program)
         assert self.sync_endpoint is not None
-        response = post_json(self.session, self.sync_endpoint + "/qvm", payload)
+        response = post_json(self.client, self.sync_endpoint + "/qvm", payload)
         return Wavefunction.from_bit_packed_string(response.content)
 
     @_record_call
@@ -347,7 +363,7 @@ programs run on this QVM.
 
         payload = self._expectation_payload(prep_prog, operator_programs)
         assert self.sync_endpoint is not None
-        response = post_json(self.session, self.sync_endpoint + "/qvm", payload)
+        response = post_json(self.client, self.sync_endpoint + "/qvm", payload)
         return cast(List[float], response.json())
 
     @_record_call

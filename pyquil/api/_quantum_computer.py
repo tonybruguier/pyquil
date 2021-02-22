@@ -25,6 +25,8 @@ from contextlib import contextmanager
 
 import networkx as nx
 import numpy as np
+from httpx import Client
+from qcs_api_client.client import build_sync_client
 from rpcq.messages import QuiltBinaryExecutableResponse, PyQuilExecutableResponse
 
 from pyquil.api._compiler import QPUCompiler, QVMCompiler
@@ -606,15 +608,14 @@ def _canonicalize_name(prefix: str, qvm_type: Optional[str], noisy: bool) -> str
 
 
 def _get_qvm_or_pyqvm(
+    client: Client,
     qvm_type: str,
     noise_model: Optional[NoiseModel] = None,
     device: Optional[AbstractDevice] = None,
     requires_executable: bool = False,
 ) -> Union[QVM, PyQVM]:
     if qvm_type == "qvm":
-        return QVM(
-            noise_model=noise_model, requires_executable=requires_executable
-        )
+        return QVM(client=client, noise_model=noise_model, requires_executable=requires_executable)
     elif qvm_type == "pyqvm":
         assert device is not None
         return PyQVM(n_qubits=device.qubit_topology().number_of_nodes())
@@ -623,6 +624,7 @@ def _get_qvm_or_pyqvm(
 
 
 def _get_qvm_qc(
+    client: Client,
     name: str,
     qvm_type: str,
     device: AbstractDevice,
@@ -634,6 +636,7 @@ def _get_qvm_qc(
 
     This is a minimal wrapper over the QuantumComputer, QVM, and QVMCompiler constructors.
 
+    :param client: QCS client.
     :param name: A string identifying this particular quantum computer.
     :param qvm_type: The type of QVM. Either qvm or pyqvm.
     :param device: A device following the AbstractDevice interface.
@@ -641,14 +644,13 @@ def _get_qvm_qc(
     :param requires_executable: Whether this QVM will refuse to run a :py:class:`Program` and
         only accept the result of :py:func:`compiler.native_quil_to_executable`. Setting this
         to True better emulates the behavior of a QPU.
-    :param connection: An optional :py:class:`ForestConnection` object. If not specified,
-        the default values for URL endpoints will be used.
     :return: A QuantumComputer backed by a QVM with the above options.
     """
 
     return QuantumComputer(
         name=name,
         qam=_get_qvm_or_pyqvm(
+            client=client,
             qvm_type=qvm_type,
             noise_model=noise_model,
             device=device,
@@ -656,12 +658,13 @@ def _get_qvm_qc(
         ),
         device=device,
         compiler=QVMCompiler(
-            device=device, endpoint="TODO", timeout=compiler_timeout  # TODO: replace endpoint
+            device=device, endpoint="tcp://127.0.0.1:5555", timeout=compiler_timeout  # TODO: use configured value
         ),
     )
 
 
 def _get_qvm_with_topology(
+    client: Client,
     name: str,
     topology: nx.Graph,
     noisy: bool = False,
@@ -671,6 +674,7 @@ def _get_qvm_with_topology(
 ) -> QuantumComputer:
     """Construct a QVM with the provided topology.
 
+    :param client: QCS client.
     :param name: A name for your quantum computer. This field does not affect behavior of the
         constructed QuantumComputer.
     :param topology: A graph representing the desired qubit connectivity.
@@ -680,8 +684,6 @@ def _get_qvm_with_topology(
     :param requires_executable: Whether this QVM will refuse to run a :py:class:`Program` and
         only accept the result of :py:func:`compiler.native_quil_to_executable`. Setting this
         to True better emulates the behavior of a QPU.
-    :param connection: An optional :py:class:`ForestConnection` object. If not specified,
-        the default values for URL endpoints will be used.
     :param qvm_type: The type of QVM. Either 'qvm' or 'pyqvm'.
     :return: A pre-configured QuantumComputer
     """
@@ -694,9 +696,9 @@ def _get_qvm_with_topology(
     else:
         noise_model = None
     return _get_qvm_qc(
+        client=client,
         name=name,
         qvm_type=qvm_type,
-        connection=connection,
         device=device,
         noise_model=noise_model,
         requires_executable=requires_executable,
@@ -705,6 +707,7 @@ def _get_qvm_with_topology(
 
 
 def _get_9q_square_qvm(
+    client: Client,
     name: str,
     noisy: bool,
     qvm_type: str = "qvm",
@@ -716,16 +719,16 @@ def _get_9q_square_qvm(
     This uses a "generic" lattice not tied to any specific device. 9 qubits is large enough
     to do vaguely interesting algorithms and small enough to simulate quickly.
 
+    :param client: QCS client.
     :param name: The name of this QVM
-    :param connection: The connection to use to talk to external services
     :param noisy: Whether to construct a noisy quantum computer
     :param qvm_type: The type of QVM. Either 'qvm' or 'pyqvm'.
     :return: A pre-configured QuantumComputer
     """
     topology = nx.convert_node_labels_to_integers(nx.grid_2d_graph(3, 3))
     return _get_qvm_with_topology(
+        client=client,
         name=name,
-        connection=connection,
         topology=topology,
         noisy=noisy,
         requires_executable=True,
@@ -735,6 +738,7 @@ def _get_9q_square_qvm(
 
 
 def _get_unrestricted_qvm(
+    client: Client,
     name: str,
     noisy: bool,
     n_qubits: int = 34,
@@ -746,15 +750,16 @@ def _get_unrestricted_qvm(
 
     This is obviously the least realistic QVM, but who am I to tell users what they want.
 
+    :param client: QCS client.
     :param name: The name of this QVM
     :param noisy: Whether to construct a noisy quantum computer
     :param n_qubits: 34 qubits ought to be enough for anybody.
-    :param connection: The connection to use to talk to external services
     :param qvm_type: The type of QVM. Either 'qvm' or 'pyqvm'.
     :return: A pre-configured QuantumComputer
     """
     topology = nx.complete_graph(n_qubits)
     return _get_qvm_with_topology(
+        client=client,
         name=name,
         topology=topology,
         noisy=noisy,
@@ -765,6 +770,7 @@ def _get_unrestricted_qvm(
 
 
 def _get_qvm_based_on_real_device(
+    client: Client,
     name: str,
     device: Device,
     noisy: bool,
@@ -776,12 +782,11 @@ def _get_qvm_based_on_real_device(
 
     This is the most realistic QVM.
 
+    :param client: QCS client.
     :param name: The full name of this QVM
     :param device: The device from :py:func:`get_lattice`.
     :param noisy: Whether to construct a noisy quantum computer by using the device's
         associated noise model.
-    :param connection: An optional :py:class:`ForestConnection` object. If not specified,
-        the default values for URL endpoints will be used.
     :return: A pre-configured QuantumComputer based on the named device.
     """
     if noisy:
@@ -789,6 +794,7 @@ def _get_qvm_based_on_real_device(
     else:
         noise_model = None
     return _get_qvm_qc(
+        client=client,
         name=name,
         device=device,
         noise_model=noise_model,
@@ -804,6 +810,7 @@ def get_qc(
     *,
     as_qvm: Optional[bool] = None,
     noisy: Optional[bool] = None,
+    client: Optional[Client] = None,
     compiler_timeout: float = 10,
 ) -> QuantumComputer:
     """
@@ -870,13 +877,27 @@ def get_qc(
         is an empirically parameterized model based on real device noise characteristics.
         The generic QVM noise model is simple T1 and T2 noise plus readout error. See
         :py:func:`~pyquil.noise.decoherence_noise_with_asymmetric_ro`.
-    :param connection: An optional :py:class:`ForestConnection` object. If not specified,
-        the default values for URL endpoints will be used. If you deign to change any
-        of these parameters, pass your own :py:class:`ForestConnection` object.
+    :param client: An optional QCS client. If not specified, a default client from
+        ``qcs_api_client.build_sync_client()`` will be used.
     :param compiler_timeout: The number of seconds after which a compilation request will raise
         a TimeoutError.
     :return: A pre-configured QuantumComputer
     """
+
+    if client is None:
+        with build_sync_client() as client:
+            return _get_qc(client, name, as_qvm, noisy, compiler_timeout)
+
+    return _get_qc(client, name, as_qvm, noisy, compiler_timeout)
+
+
+def _get_qc(
+        client: Client,
+        name: str,
+        as_qvm: Optional[bool],
+        noisy: Optional[bool],
+        compiler_timeout: float,
+) -> QuantumComputer:
     # 1. Parse name, check for redundant options, canonicalize names.
     prefix, qvm_type, noisy = _parse_name(name, as_qvm, noisy)
     del as_qvm  # do not use after _parse_name
@@ -889,6 +910,7 @@ def get_qc(
         if qvm_type is None:
             raise ValueError("Please name a valid device or run as a QVM")
         return _get_unrestricted_qvm(
+            client=client,
             name=name,
             noisy=noisy,
             n_qubits=n_qubits,
@@ -904,6 +926,7 @@ def get_qc(
         if qvm_type is None:
             raise ValueError("The device '9q-square' is only available as a QVM")
         return _get_9q_square_qvm(
+            client=client,
             name=name,
             noisy=noisy,
             qvm_type=qvm_type,
@@ -915,6 +938,7 @@ def get_qc(
     if qvm_type is not None:
         # 4.1 QVM based on a real device.
         return _get_qvm_based_on_real_device(
+            client=client,
             name=name,
             device=device,
             noisy=noisy,

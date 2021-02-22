@@ -174,7 +174,7 @@ def get_benchmarker(endpoint: Optional[str] = None, timeout: float = 10) -> Benc
     :return: Instance of an AbstractBenchmarker subclass, connected to the given endpoint.
     """
     if endpoint is None:
-        config = PyquilConfig()
-        endpoint = config.quilc_url
+        # config = PyquilConfig()
+        endpoint = "tcp://127.0.0.1:5555"  # TODO: use configured value
 
     return BenchmarkConnection(endpoint=endpoint, timeout=timeout)
