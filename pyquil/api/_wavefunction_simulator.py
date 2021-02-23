@@ -13,11 +13,15 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 ##############################################################################
-from typing import Dict, List, Union, Optional, Any, Set, cast
+import warnings
+from typing import Dict, List, Union, Optional, Any, Set, cast, Iterable
 from warnings import warn
 
 import numpy as np
+from httpx import Client
+from qcs_api_client.client import QCSClientConfiguration
 
+from pyquil.api._base_connection import expectation_payload, post_json, wavefunction_payload
 from pyquil.api._error_reporting import _record_call
 from pyquil.paulis import PauliSum, PauliTerm
 from pyquil.quil import Program, percolate_declares
@@ -29,15 +33,16 @@ from pyquil.wavefunction import Wavefunction
 class WavefunctionSimulator:
     @_record_call
     def __init__(
-        self, random_seed: Optional[int] = None
+        self, client: Client, random_seed: Optional[int] = None
     ) -> None:
         """
         A simulator that propagates a wavefunction representation of a quantum state.
 
-        :param connection: A connection to the Forest web API.
+        :param client: QCS client.
         :param random_seed: A seed for the simulator's random number generators. Either None (for
             an automatically generated seed) or a non-negative integer.
         """
+        self.client = client
 
         if random_seed is None:
             self.random_seed = None
@@ -73,10 +78,10 @@ class WavefunctionSimulator:
         if memory_map is not None:
             quil_program = self.augment_program_with_memory_values(quil_program, memory_map)
 
-        return cast(
-            Wavefunction,
-            self.connection._wavefunction(quil_program=quil_program, random_seed=self.random_seed),
-        )
+        payload = wavefunction_payload(quil_program, self.random_seed)
+        # TODO(andrew): use configured value
+        response = post_json(self.client, "http://127.0.0.1:5000" + "/qvm", payload)
+        return Wavefunction.from_bit_packed_string(response.content)
 
     @_record_call
     def expectation(
@@ -123,11 +128,26 @@ class WavefunctionSimulator:
         if memory_map is not None:
             prep_prog = self.augment_program_with_memory_values(prep_prog, memory_map)
 
-        bare_results = self.connection._expectation(prep_prog, progs, random_seed=self.random_seed)
+        bare_results = self._expectation(prep_prog, progs)
         results = coeffs * bare_results
         if is_pauli_sum:
             return np.sum(results)
         return results
+
+    def _expectation(self, prep_prog: Program, operator_programs: Iterable[Program]) -> np.ndarray:
+        if isinstance(operator_programs, Program):
+            warnings.warn(
+                "You have provided a Program rather than a list of Programs. The results "
+                "from expectation will be line-wise expectation values of the "
+                "operator_programs.",
+                SyntaxWarning,
+            )
+
+        payload = expectation_payload(prep_prog, operator_programs, self.random_seed)
+        # TODO(andrew): refactor config loading?
+        qvm_url = QCSClientConfiguration.load().profile.applications.pyquil.qvm_url
+        response = post_json(self.client, qvm_url + "/qvm", payload)
+        return np.asarray(response.json())
 
     @_record_call
     def run_and_measure(

@@ -139,7 +139,7 @@ def qvm(qcs_client: Client):
 def compiler(test_device):
     try:
         # config = PyquilConfig()
-        quilc_url = "tcp://127.0.0.1:5555"  # TODO: use configured value
+        quilc_url = "tcp://127.0.0.1:5555"  # TODO(andrew): use configured value
         compiler = QVMCompiler(endpoint=quilc_url, device=test_device, timeout=1)
         compiler.quil_to_native_quil(Program(I(0)))
         return compiler

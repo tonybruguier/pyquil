@@ -192,7 +192,7 @@ class QPUCompiler(AbstractCompiler):
     @_record_call
     def __init__(
         self,
-        quilc_endpoint: Optional[str],  # TODO: remove these endpoints?
+        quilc_endpoint: Optional[str],  # TODO(andrew): remove these endpoints?
         qpu_compiler_endpoint: Optional[str],
         device: AbstractDevice,
         timeout: float = 10,
@@ -385,7 +385,7 @@ class QPUCompiler(AbstractCompiler):
         request = QuiltCalibrationsRequest(target_device=self.target_device)
         if not self.qpu_compiler_client:
             raise UserMessageError(
-                # TODO Improve this error message with a reference to
+                # TODO(andrew): Update this
                 # the pyquil config docs?
                 "It looks like you're trying to request Quil-T calibrations, but "
                 "do not have access to the QPU compiler endpoint. Make sure you "

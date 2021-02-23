@@ -528,7 +528,7 @@ def list_quantum_computers(
     """
     qc_names: List[str] = []
     if qpus:
-        qc_names += []# list(list_lattices(connection=connection).keys()) TODO: use qcs client
+        qc_names += []# list(list_lattices(connection=connection).keys()) TODO(andrew): use qcs client
 
     if qvms:
         qc_names += ["9q-square-qvm", "9q-square-noisy-qvm"]
@@ -658,7 +658,7 @@ def _get_qvm_qc(
         ),
         device=device,
         compiler=QVMCompiler(
-            device=device, endpoint="tcp://127.0.0.1:5555", timeout=compiler_timeout  # TODO: use configured value
+            device=device, endpoint="tcp://127.0.0.1:5555", timeout=compiler_timeout  # TODO(andrew): use configured value
         ),
     )
 
@@ -807,10 +807,10 @@ def _get_qvm_based_on_real_device(
 @_record_call
 def get_qc(
     name: str,
+    client: Client,
     *,
     as_qvm: Optional[bool] = None,
     noisy: Optional[bool] = None,
-    client: Optional[Client] = None,
     compiler_timeout: float = 10,
 ) -> QuantumComputer:
     """
@@ -877,16 +877,16 @@ def get_qc(
         is an empirically parameterized model based on real device noise characteristics.
         The generic QVM noise model is simple T1 and T2 noise plus readout error. See
         :py:func:`~pyquil.noise.decoherence_noise_with_asymmetric_ro`.
-    :param client: An optional QCS client. If not specified, a default client from
-        ``qcs_api_client.build_sync_client()`` will be used.
+    :param client: QCS client.
     :param compiler_timeout: The number of seconds after which a compilation request will raise
         a TimeoutError.
     :return: A pre-configured QuantumComputer
     """
 
-    if client is None:
-        with build_sync_client() as client:
-            return _get_qc(client, name, as_qvm, noisy, compiler_timeout)
+    # TODO(andrew): decide how to handle optional clients
+    # if client is None:
+    #     with build_sync_client() as client:
+    #         return _get_qc(client, name, as_qvm, noisy, compiler_timeout)
 
     return _get_qc(client, name, as_qvm, noisy, compiler_timeout)
 
@@ -934,7 +934,7 @@ def _get_qc(
         )
 
     # 4. Not a special case, query the web for information about this device.
-    device = None  # get_lattice(prefix) TODO: replace with client call
+    device = None  # get_lattice(prefix) TODO(andrew): replace with client call
     if qvm_type is not None:
         # 4.1 QVM based on a real device.
         return _get_qvm_based_on_real_device(
@@ -953,7 +953,7 @@ def _get_qc(
                 "is meant for controlling noise models on QVMs."
             )
 
-        qpu = QPU(endpoint=None)  #, user=pyquil_config.user_id, session=session) TODO: replace with client
+        qpu = QPU(endpoint=None)  #, user=pyquil_config.user_id, session=session) TODO(andrew): replace with client
 
         compiler = QPUCompiler(
             quilc_endpoint=None,

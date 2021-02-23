@@ -175,6 +175,6 @@ def get_benchmarker(endpoint: Optional[str] = None, timeout: float = 10) -> Benc
     """
     if endpoint is None:
         # config = PyquilConfig()
-        endpoint = "tcp://127.0.0.1:5555"  # TODO: use configured value
+        endpoint = "tcp://127.0.0.1:5555"  # TODO(andrew): use configured value
 
     return BenchmarkConnection(endpoint=endpoint, timeout=timeout)

@@ -71,7 +71,7 @@ class QVMConnection(object):
     @_record_call
     def __init__(
         self,
-        client: Client,  # TODO: optional?
+        client: Client,  # TODO(andrew): optional?
         device: Optional[Device] = None,
         endpoint: Optional[str] = None,
         gate_noise: Optional[List[float]] = None,
@@ -96,12 +96,12 @@ class QVMConnection(object):
         """
         if endpoint is None:
             # pyquil_config = PyquilConfig()
-            qvm_url = "http://127.0.0.1:5000"  # TODO: use configured value
+            qvm_url = "http://127.0.0.1:5000"  # TODO(andrew): use configured value
             endpoint = qvm_url
 
         if compiler_endpoint is None:
             # pyquil_config = PyquilConfig()
-            quilc_url = "tcp://127.0.0.1:5555"  # TODO: use configured value
+            quilc_url = "tcp://127.0.0.1:5555"  # TODO(andrew): use configured value
             compiler_endpoint = quilc_url
 
         if (device is not None and device.noise_model is not None) and (
@@ -163,7 +163,7 @@ programs run on this QVM.
         :return: String with version information
         """
 
-        # TODO: dry this up? (wrt QVM.get_version_info())
+        # TODO(andrew): dry this up? (wrt QVM.get_version_info())
         response = post_json(self.client, self.sync_endpoint, {"type": "version"})
         split_version_string = response.text.split()
         try:
@@ -209,7 +209,6 @@ programs run on this QVM.
             self.random_seed
         )
         response = post_json(self.client, self.sync_endpoint + "/qvm", payload)
-        # TODO: check status code
         buffers: Dict[str, np.ndarray] = {key: np.array(val) for key, val in response.json().items()}
 
         if len(buffers) == 0:
@@ -485,7 +484,7 @@ http://pyquil.readthedocs.io/en/latest/noise_models.html#support-for-noisy-gates
 
         self.noise_model = noise_model
         self.client = client
-        self.qvm_url = "http://127.0.0.1:5000"  # TODO: use configured value (don't put on self)
+        self.qvm_url = "http://127.0.0.1:5000"  # TODO(andrew): use configured value (don't put on self)
 
         validate_noise_probabilities(gate_noise)
         validate_noise_probabilities(measurement_noise)
@@ -599,7 +598,6 @@ http://pyquil.readthedocs.io/en/latest/noise_models.html#support-for-noisy-gates
             self.random_seed
         )
         response = post_json(self.client, self.qvm_url + "/qvm", payload)
-        # TODO: check status code
         ram: Dict[str, np.ndarray] = {key: np.array(val) for key, val in response.json().items()}
         self._memory_results.update(ram)
 

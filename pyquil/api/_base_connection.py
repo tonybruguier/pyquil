@@ -61,6 +61,7 @@ def post_json(client: Client, url: str, json: Any) -> Response:
     """
     logger.debug("Sending POST request to %s. Body: %s", url, json)
     res = client.post(url, json=json)
+    # TODO(andrew): use res.raise_for_status()?
     if res.status_code >= 400:
         raise _parse_error(res)
     return res
@@ -159,6 +160,7 @@ def prepare_register_list(
     return register_dict
 
 
+# TODO(andrew): move?
 def run_and_measure_payload(
     quil_program: Program, qubits: Sequence[int], trials: int, random_seed: int
 ) -> Dict[str, object]:
@@ -188,6 +190,7 @@ def run_and_measure_payload(
     return payload
 
 
+# TODO(andrew): move?
 def wavefunction_payload(quil_program: Program, random_seed: int) -> Dict[str, object]:
     """REST payload for :py:func:`ForestConnection._wavefunction`"""
     if not isinstance(quil_program, Program):
@@ -204,6 +207,7 @@ def wavefunction_payload(quil_program: Program, random_seed: int) -> Dict[str, o
     return payload
 
 
+# TODO(andrew): move?
 def expectation_payload(
     prep_prog: Program, operator_programs: Optional[Iterable[Program]], random_seed: int
 ) -> Dict[str, object]:
@@ -226,6 +230,7 @@ def expectation_payload(
     return payload
 
 
+# TODO(andrew): move?
 def qvm_run_payload(
     quil_program: Program,
     classical_addresses: Dict[str, Union[bool, Sequence[int]]],
@@ -234,7 +239,7 @@ def qvm_run_payload(
     gate_noise: Optional[Tuple[float, float, float]],
     random_seed: Optional[int],
 ) -> Dict[str, object]:
-    """REST payload for :py:func:`ForestConnection._qvm_run`"""  # TODO: update string
+    """REST payload for QVM execution`"""
     if not quil_program:
         raise ValueError(
             "You have attempted to run an empty program."
