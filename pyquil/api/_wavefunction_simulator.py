@@ -18,9 +18,9 @@ from typing import Dict, List, Union, Optional, Any, Set, cast, Iterable
 from warnings import warn
 
 import numpy as np
-from httpx import Client
 from qcs_api_client.client import QCSClientConfiguration
 
+from pyquil.api import Client
 from pyquil.api._base_connection import expectation_payload, wavefunction_payload
 from pyquil.api._error_reporting import _record_call
 from pyquil.gates import MOVE
@@ -33,16 +33,16 @@ from pyquil.wavefunction import Wavefunction
 class WavefunctionSimulator:
     @_record_call
     def __init__(
-        self, client: Client, random_seed: Optional[int] = None
+        self, client: Optional[Client], random_seed: Optional[int] = None
     ) -> None:
         """
         A simulator that propagates a wavefunction representation of a quantum state.
 
-        :param client: QCS client.
+        :param client: Optional QCS client. If none is provided, a default client will be created.
         :param random_seed: A seed for the simulator's random number generators. Either None (for
             an automatically generated seed) or a non-negative integer.
         """
-        self.client = client
+        self.client = client or Client()
 
         if random_seed is None:
             self.random_seed = None
@@ -79,8 +79,7 @@ class WavefunctionSimulator:
             quil_program = self.augment_program_with_memory_values(quil_program, memory_map)
 
         payload = wavefunction_payload(quil_program, self.random_seed)
-        # TODO(andrew): use configured value
-        response = post_json(self.client, "http://127.0.0.1:5000" + "/qvm", payload)
+        response = self.client.post_json(self.client.qvm_url, payload)
         return Wavefunction.from_bit_packed_string(response.content)
 
     @_record_call
@@ -144,9 +143,7 @@ class WavefunctionSimulator:
             )
 
         payload = expectation_payload(prep_prog, operator_programs, self.random_seed)
-        # TODO(andrew): refactor config loading?
-        qvm_url = QCSClientConfiguration.load().profile.applications.pyquil.qvm_url
-        response = post_json(self.client, qvm_url + "/qvm", payload)
+        response = self.client.post_json(self.client.qvm_url, payload)
         return np.asarray(response.json())
 
     @_record_call
@@ -198,6 +195,7 @@ class WavefunctionSimulator:
         if memory_map is not None:
             quil_program = self.augment_program_with_memory_values(quil_program, memory_map)
 
+        # TODO(andrew): refactor. is this tested?
         return self.connection._run_and_measure(
             quil_program=quil_program, qubits=qubits, trials=trials, random_seed=self.random_seed
         )
