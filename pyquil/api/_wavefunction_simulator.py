@@ -21,12 +21,12 @@ import numpy as np
 from httpx import Client
 from qcs_api_client.client import QCSClientConfiguration
 
-from pyquil.api._base_connection import expectation_payload, post_json, wavefunction_payload
+from pyquil.api._base_connection import expectation_payload, wavefunction_payload
 from pyquil.api._error_reporting import _record_call
+from pyquil.gates import MOVE
 from pyquil.paulis import PauliSum, PauliTerm
 from pyquil.quil import Program, percolate_declares
 from pyquil.quilatom import MemoryReference
-from pyquil.gates import MOVE
 from pyquil.wavefunction import Wavefunction
 
 

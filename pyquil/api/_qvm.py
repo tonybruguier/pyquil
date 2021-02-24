@@ -17,16 +17,16 @@ import warnings
 import numpy as np
 from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Union, cast
 
-from httpx import Client
 from requests.exceptions import ConnectionError
 from rpcq.messages import PyQuilExecutableResponse
 
+from pyquil.api import Client
 from pyquil.api._base_connection import (
     validate_qubit_list,
     validate_noise_probabilities,
     TYPE_MULTISHOT_MEASURE,
     TYPE_WAVEFUNCTION,
-    TYPE_EXPECTATION, qvm_run_payload, post_json,
+    TYPE_EXPECTATION, qvm_run_payload,
 )
 from pyquil.api._compiler import QVMCompiler, _extract_program_from_pyquil_executable_response
 from pyquil.api._error_reporting import _record_call
@@ -71,7 +71,7 @@ class QVMConnection(object):
     @_record_call
     def __init__(
         self,
-        client: Client,  # TODO(andrew): optional?
+        client: Optional[Client] = None,
         device: Optional[Device] = None,
         endpoint: Optional[str] = None,
         gate_noise: Optional[List[float]] = None,
@@ -83,10 +83,9 @@ class QVMConnection(object):
         Constructor for QVMConnection. Sets up any necessary security, and establishes the noise
         model to use.
 
-        :param client: QCS client.
+        :param client: Optional QCS client. If none is provided, a default client will be created.
         :param device: The optional device, from which noise will be added by default to all
             programs run on this instance.
-        :param endpoint: The endpoint of the server for running small jobs
         :param gate_noise: A list of three numbers [Px, Py, Pz] indicating the probability of an X,
             Y, or Z gate getting applied to each qubit after a gate application or reset.
         :param measurement_noise: A list of three numbers [Px, Py, Pz] indicating the probability of
@@ -94,15 +93,7 @@ class QVMConnection(object):
         :param random_seed: A seed for the QVM's random number generators. Either None (for an
             automatically generated seed) or a non-negative integer.
         """
-        if endpoint is None:
-            # pyquil_config = PyquilConfig()
-            qvm_url = "http://127.0.0.1:5000"  # TODO(andrew): use configured value
-            endpoint = qvm_url
-
-        if compiler_endpoint is None:
-            # pyquil_config = PyquilConfig()
-            quilc_url = "tcp://127.0.0.1:5555"  # TODO(andrew): use configured value
-            compiler_endpoint = quilc_url
+        self.client = client or Client()
 
         if (device is not None and device.noise_model is not None) and (
             gate_noise is not None or measurement_noise is not None
@@ -443,7 +434,7 @@ class QVM(QAM):
     @_record_call
     def __init__(
         self,
-        client: Client,
+        client: Optional[Client] = None,
         noise_model: Optional[NoiseModel] = None,
         gate_noise: Optional[List[float]] = None,
         measurement_noise: Optional[List[float]] = None,
@@ -453,7 +444,7 @@ class QVM(QAM):
         """
         A virtual machine that classically emulates the execution of Quil programs.
 
-        :param client: QCS client.
+        :param client: Optional QCS client. If none is provided, a default client will be created.
         :param noise_model: A noise model that describes noise to apply when emulating a program's
             execution.
         :param gate_noise: A list of three numbers [Px, Py, Pz] indicating the probability of an X,
@@ -470,6 +461,8 @@ class QVM(QAM):
         """
         super().__init__()
 
+        self.client = client or Client()
+
         if (noise_model is not None) and (gate_noise is not None or measurement_noise is not None):
             raise ValueError(
                 """
@@ -483,8 +476,6 @@ http://pyquil.readthedocs.io/en/latest/noise_models.html#support-for-noisy-gates
             )
 
         self.noise_model = noise_model
-        self.client = client
-        self.qvm_url = "http://127.0.0.1:5000"  # TODO(andrew): use configured value (don't put on self)
 
         validate_noise_probabilities(gate_noise)
         validate_noise_probabilities(measurement_noise)
@@ -516,7 +507,7 @@ http://pyquil.readthedocs.io/en/latest/noise_models.html#support-for-noisy-gates
         :return: String with version information
         """
 
-        response = post_json(self.client, self.qvm_url, {"type": "version"})
+        response = self.client.post_json(self.client.qvm_url, {"type": "version"})
         split_version_string = response.text.split()
         try:
             qvm_version = split_version_string[0]
@@ -597,7 +588,7 @@ http://pyquil.readthedocs.io/en/latest/noise_models.html#support-for-noisy-gates
             self.gate_noise,
             self.random_seed
         )
-        response = post_json(self.client, self.qvm_url + "/qvm", payload)
+        response = self.client.post_json(self.client.qvm_url, payload)
         ram: Dict[str, np.ndarray] = {key: np.array(val) for key, val in response.json().items()}
         self._memory_results.update(ram)
 

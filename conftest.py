@@ -2,18 +2,16 @@ import shutil
 
 import numpy as np
 import pytest
-from httpx import Client
-from qcs_api_client.client import build_sync_client
 from requests import RequestException
 
 from pyquil.api import (
     QVMConnection,
     QVMCompiler,
     get_benchmarker,
-    local_forest_runtime,
+    local_forest_runtime, Client,
 )
-from pyquil.api._errors import UnknownApiError
 from pyquil.api._compiler import QuilcNotRunning, QuilcVersionMismatch
+from pyquil.api._errors import UnknownApiError
 from pyquil.api._qvm import QVMNotRunning, QVMVersionMismatch
 from pyquil.device import Device
 from pyquil.gates import I
@@ -150,9 +148,8 @@ def compiler(test_device):
 
 
 @pytest.fixture(scope="session")
-def qcs_client():
-    with build_sync_client() as client:
-        yield client
+def client():
+    return Client()
 
 
 @pytest.fixture(scope="session")

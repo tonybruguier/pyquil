@@ -16,7 +16,7 @@
 import re
 import time
 import warnings
-from json.decoder import JSONDecodeError
+
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple, Union, cast
 
 import numpy as np
@@ -33,7 +33,7 @@ from pyquil.api._errors import (
     UnknownApiError,
     TooManyQubitsError,
 )
-from pyquil.api._logger import logger
+
 from pyquil.quil import Program
 from pyquil.version import __version__
 from pyquil.wavefunction import Wavefunction
@@ -53,45 +53,6 @@ TYPE_WAVEFUNCTION = "wavefunction"
 #     if res.status_code >= 400:
 #         raise parse_error(res)
 #     return res.json()
-
-
-def post_json(client: Client, url: str, json: Any) -> Response:
-    """
-    Post JSON to a known endpoint.
-    """
-    logger.debug("Sending POST request to %s. Body: %s", url, json)
-    res = client.post(url, json=json)
-    # TODO(andrew): use res.raise_for_status()?
-    if res.status_code >= 400:
-        raise _parse_error(res)
-    return res
-
-
-def _parse_error(res: requests.Response) -> ApiError:
-    """
-    Errors should contain a "status" field with a human readable explanation of
-    what went wrong as well as a "error_type" field indicating the kind of error that can be mapped
-    to a Python type.
-
-    There's a fallback error UnknownError for other types of exceptions (network issues, api
-    gateway problems, etc.)
-    """
-    try:
-        body = res.json()
-    except JSONDecodeError:
-        raise UnknownApiError(res.text)
-
-    if "error_type" not in body:
-        raise UnknownApiError(str(body))
-
-    error_type = body["error_type"]
-    status = body["status"]
-
-    if re.search(r"[0-9]+ qubits were requested, but the QVM is limited to [0-9]+ qubits.", status):
-        return TooManyQubitsError(status)
-
-    error_cls = error_mapping.get(error_type, UnknownApiError)
-    return error_cls(status)
 
 
 def validate_noise_probabilities(noise_parameter: Optional[List[float]]) -> None:
