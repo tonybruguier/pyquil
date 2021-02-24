@@ -96,6 +96,7 @@ def _extract_memory_regions(
     return regions
 
 
+# TODO(andrew): needs client?
 class QPU(QAM):
     @_record_call
     def __init__(

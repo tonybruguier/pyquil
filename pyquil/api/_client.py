@@ -51,6 +51,25 @@ class Client:
         """
         return self._config.profile.applications.pyquil.qvm_url
 
+    @property
+    def quilc_url(self) -> str:
+        """
+        Quil compiler URL from client configuration.
+        """
+        return self._config.profile.applications.pyquil.quilc_url
+
+    def qvm_version(self) -> str:
+        """
+        Get QVM version string.
+        """
+        response = self.post_json(self.qvm_url, {"type": "version"})
+        split_version_string = response.text.split()
+        try:
+            qvm_version = split_version_string[0]
+        except ValueError:
+            raise TypeError(f"Malformed version string returned by the QVM: {response.text}")
+        return qvm_version
+
     @contextmanager
     def _client(self) -> httpx.Client:
         if self._http is None:

@@ -8,7 +8,8 @@ from pyquil.api import (
     QVMConnection,
     QVMCompiler,
     get_benchmarker,
-    local_forest_runtime, Client,
+    local_forest_runtime,
+    Client,
 )
 from pyquil.api._compiler import QuilcNotRunning, QuilcVersionMismatch
 from pyquil.api._errors import UnknownApiError
@@ -122,9 +123,9 @@ def test_device(device_raw):
 
 
 @pytest.fixture(scope="session")
-def qvm(qcs_client: Client):
+def qvm(client: Client):
     try:
-        qvm = QVMConnection(client=qcs_client, random_seed=52)
+        qvm = QVMConnection(client=client, random_seed=52)
         qvm.run(Program(I(0)), [])
         return qvm
     except (RequestException, QVMNotRunning, UnknownApiError) as e:

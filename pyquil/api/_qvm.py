@@ -73,11 +73,9 @@ class QVMConnection(object):
         self,
         client: Optional[Client] = None,
         device: Optional[Device] = None,
-        endpoint: Optional[str] = None,
         gate_noise: Optional[List[float]] = None,
         measurement_noise: Optional[List[float]] = None,
         random_seed: Optional[int] = None,
-        compiler_endpoint: Optional[str] = None,
     ):
         """
         Constructor for QVMConnection. Sets up any necessary security, and establishes the noise
@@ -118,9 +116,7 @@ programs run on this QVM.
             )
 
         self.noise_model = device.noise_model if device else None
-        self.compiler = QVMCompiler(endpoint=compiler_endpoint, device=device) if device else None
-
-        self.sync_endpoint = endpoint
+        self.compiler = QVMCompiler(endpoint=self.client.quilc_url, device=device) if device else None
 
         validate_noise_probabilities(gate_noise)
         validate_noise_probabilities(measurement_noise)
@@ -144,7 +140,7 @@ programs run on this QVM.
             version_dict = self.get_version_info()
             check_qvm_version(version_dict)
         except ConnectionError:
-            raise QVMNotRunning(f"No QVM server running at {self.sync_endpoint}")
+            raise QVMNotRunning(f"No QVM server running at {self.client.qvm_url}")
 
     @_record_call
     def get_version_info(self) -> str:
@@ -153,15 +149,7 @@ programs run on this QVM.
 
         :return: String with version information
         """
-
-        # TODO(andrew): dry this up? (wrt QVM.get_version_info())
-        response = post_json(self.client, self.sync_endpoint, {"type": "version"})
-        split_version_string = response.text.split()
-        try:
-            qvm_version = split_version_string[0]
-        except ValueError:
-            raise TypeError(f"Malformed version string returned by the QVM: {response.text}")
-        return qvm_version
+        return self.client.qvm_version()
 
     @_record_call
     def run(
@@ -199,7 +187,7 @@ programs run on this QVM.
             self.gate_noise,
             self.random_seed
         )
-        response = post_json(self.client, self.sync_endpoint + "/qvm", payload)
+        response = self.client.post_json(self.client.qvm_url, payload)
         buffers: Dict[str, np.ndarray] = {key: np.array(val) for key, val in response.json().items()}
 
         if len(buffers) == 0:
@@ -236,8 +224,7 @@ programs run on this QVM.
         # using a noise model with this function)
 
         payload = self._run_and_measure_payload(quil_program, qubits, trials)
-        assert self.sync_endpoint is not None
-        response = post_json(self.client, self.sync_endpoint + "/qvm", payload)
+        response = self.client.post_json(self.client.qvm_url, payload)
         return cast(List[List[int]], response.json())
 
     @_record_call
@@ -293,8 +280,7 @@ programs run on this QVM.
         # using a noise model with this function)
 
         payload = self._wavefunction_payload(quil_program)
-        assert self.sync_endpoint is not None
-        response = post_json(self.client, self.sync_endpoint + "/qvm", payload)
+        response = self.client.post_json(self.client.qvm_url, payload)
         return Wavefunction.from_bit_packed_string(response.content)
 
     @_record_call
@@ -352,8 +338,7 @@ programs run on this QVM.
             )
 
         payload = self._expectation_payload(prep_prog, operator_programs)
-        assert self.sync_endpoint is not None
-        response = post_json(self.client, self.sync_endpoint + "/qvm", payload)
+        response = self.client.post_json(self.client.qvm_url, payload)
         return cast(List[float], response.json())
 
     @_record_call
@@ -497,7 +482,7 @@ http://pyquil.readthedocs.io/en/latest/noise_models.html#support-for-noisy-gates
             version_dict = self.get_version_info()
             check_qvm_version(version_dict)
         except ConnectionError:
-            raise QVMNotRunning(f"No QVM server running at {self.connection.sync_endpoint}")
+            raise QVMNotRunning(f"No QVM server running at {self.client.qvm_url}")
 
     @_record_call
     def get_version_info(self) -> str:
@@ -506,14 +491,7 @@ http://pyquil.readthedocs.io/en/latest/noise_models.html#support-for-noisy-gates
 
         :return: String with version information
         """
-
-        response = self.client.post_json(self.client.qvm_url, {"type": "version"})
-        split_version_string = response.text.split()
-        try:
-            qvm_version = split_version_string[0]
-        except ValueError:
-            raise TypeError(f"Malformed version string returned by the QVM: {response.text}")
-        return qvm_version
+        return self.client.qvm_version()
 
     @_record_call
     def load(self, executable: Union[Program, PyQuilExecutableResponse]) -> "QVM":

@@ -25,10 +25,10 @@ from contextlib import contextmanager
 
 import networkx as nx
 import numpy as np
-from httpx import Client
 from qcs_api_client.client import build_sync_client
 from rpcq.messages import QuiltBinaryExecutableResponse, PyQuilExecutableResponse
 
+from pyquil.api import Client
 from pyquil.api._compiler import QPUCompiler, QVMCompiler
 from pyquil.api._error_reporting import _record_call
 from pyquil.api._qac import AbstractCompiler
@@ -807,10 +807,10 @@ def _get_qvm_based_on_real_device(
 @_record_call
 def get_qc(
     name: str,
-    client: Client,
     *,
     as_qvm: Optional[bool] = None,
     noisy: Optional[bool] = None,
+    client: Optional[Client] = None,
     compiler_timeout: float = 10,
 ) -> QuantumComputer:
     """
@@ -877,27 +877,14 @@ def get_qc(
         is an empirically parameterized model based on real device noise characteristics.
         The generic QVM noise model is simple T1 and T2 noise plus readout error. See
         :py:func:`~pyquil.noise.decoherence_noise_with_asymmetric_ro`.
-    :param client: QCS client.
+    :param client: Optional QCS client. If none is provided, a default client will be created.
     :param compiler_timeout: The number of seconds after which a compilation request will raise
         a TimeoutError.
     :return: A pre-configured QuantumComputer
     """
 
-    # TODO(andrew): decide how to handle optional clients
-    # if client is None:
-    #     with build_sync_client() as client:
-    #         return _get_qc(client, name, as_qvm, noisy, compiler_timeout)
+    client = client or Client()
 
-    return _get_qc(client, name, as_qvm, noisy, compiler_timeout)
-
-
-def _get_qc(
-        client: Client,
-        name: str,
-        as_qvm: Optional[bool],
-        noisy: Optional[bool],
-        compiler_timeout: float,
-) -> QuantumComputer:
     # 1. Parse name, check for redundant options, canonicalize names.
     prefix, qvm_type, noisy = _parse_name(name, as_qvm, noisy)
     del as_qvm  # do not use after _parse_name

@@ -75,27 +75,26 @@ RB_ENCODED_REPLY = [[0, 0], [1, 1]]
 RB_REPLY = [Program("H 0\nH 0\n"), Program("PHASE(pi/2) 0\nPHASE(pi/2) 0\n")]
 
 
-def test_sync_run_mock(qvm: QVMConnection):
+def test_sync_run_mock(qvm: QVMConnection, httpx_mock: HTTPXMock):
     mock_qvm = qvm
-    mock_endpoint = mock_qvm.sync_endpoint
+    mock_endpoint = mock_qvm.client.qvm_url
+    httpx_mock.add_response(
+            method="POST",
+            url=mock_endpoint,
+            match_content=json.dumps({
+                "type": "multishot",
+                "addresses": {"ro": [0, 1]},
+                "trials": 2,
+                "compiled-quil": "DECLARE ro BIT[2]\nH 0\nCNOT 0 1\nMEASURE 0 ro[0]\nMEASURE 1 ro[1]\n",
+                "rng-seed": 52,
+            }).encode(),
+            json={"ro": [[0, 0], [1, 1]]}
+        )
 
-    def mock_response(request, context):
-        assert json.loads(request.text) == {
-            "type": "multishot",
-            "addresses": {"ro": [0, 1]},
-            "trials": 2,
-            "compiled-quil": "DECLARE ro BIT[2]\nH 0\nCNOT 0 1\nMEASURE 0 ro[0]\nMEASURE 1 ro[1]\n",
-            "rng-seed": 52,
-        }
-        return '{"ro": [[0,0],[1,1]]}'
+    assert mock_qvm.run(BELL_STATE_MEASURE, [0, 1], trials=2) == [[0, 0], [1, 1]]
 
-    with requests_mock.Mocker() as m:
-        m.post(mock_endpoint + "/qvm", text=mock_response)
-        assert mock_qvm.run(BELL_STATE_MEASURE, [0, 1], trials=2) == [[0, 0], [1, 1]]
-
-        # Test no classical addresses
-        m.post(mock_endpoint + "/qvm", text=mock_response)
-        assert mock_qvm.run(BELL_STATE_MEASURE, trials=2) == [[0, 0], [1, 1]]
+    # Test no classical addresses
+    assert mock_qvm.run(BELL_STATE_MEASURE, trials=2) == [[0, 0], [1, 1]]
 
     with pytest.raises(ValueError):
         mock_qvm.run(EMPTY_PROGRAM)
@@ -119,10 +118,10 @@ def test_sync_run(qvm: QVMConnection):
 
 def test_sync_run_and_measure_mock(qvm: QVMConnection, httpx_mock: HTTPXMock):
     mock_qvm = qvm
-    mock_endpoint = mock_qvm.sync_endpoint
+    mock_endpoint = mock_qvm.client.qvm_url
     httpx_mock.add_response(
         method="POST",
-        url=mock_endpoint + "/qvm",
+        url=mock_endpoint,
         match_content=json.dumps({
             "type": "multishot-measure",
             "qubits": [0, 1],
@@ -158,35 +157,33 @@ WAVEFUNCTION_PROGRAM = Program(
 )
 
 
-def test_sync_expectation_mock(qvm: QVMConnection):
+def test_sync_expectation_mock(qvm: QVMConnection, httpx_mock: HTTPXMock):
     mock_qvm = qvm
-    mock_endpoint = mock_qvm.sync_endpoint
-
-    def mock_response(request, context):
-        assert json.loads(request.text) == {
+    mock_endpoint = mock_qvm.client.qvm_url
+    httpx_mock.add_response(
+        method="POST",
+        url=mock_endpoint,
+        match_content=json.dumps({
             "type": "expectation",
             "state-preparation": BELL_STATE.out(),
             "operators": ["Z 0\n", "Z 1\n", "Z 0\nZ 1\n"],
             "rng-seed": 52,
-        }
-        return b"[0.0, 0.0, 1.0]"
+        }).encode(),
+        json=[0.0, 0.0, 1.0]
+    )
 
-    with requests_mock.Mocker() as m:
-        m.post(mock_endpoint + "/qvm", content=mock_response)
-        result = mock_qvm.expectation(
-            BELL_STATE, [Program(Z(0)), Program(Z(1)), Program(Z(0), Z(1))]
-        )
-        exp_expected = [0.0, 0.0, 1.0]
-        np.testing.assert_allclose(exp_expected, result)
+    result = mock_qvm.expectation(
+        BELL_STATE, [Program(Z(0)), Program(Z(1)), Program(Z(0), Z(1))]
+    )
+    exp_expected = [0.0, 0.0, 1.0]
+    np.testing.assert_allclose(exp_expected, result)
 
-    with requests_mock.Mocker() as m:
-        m.post(mock_endpoint + "/qvm", content=mock_response)
-        z0 = PauliTerm("Z", 0)
-        z1 = PauliTerm("Z", 1)
-        z01 = z0 * z1
-        result = mock_qvm.pauli_expectation(BELL_STATE, [z0, z1, z01])
-        exp_expected = [0.0, 0.0, 1.0]
-        np.testing.assert_allclose(exp_expected, result)
+    z0 = PauliTerm("Z", 0)
+    z1 = PauliTerm("Z", 1)
+    z01 = z0 * z1
+    result = mock_qvm.pauli_expectation(BELL_STATE, [z0, z1, z01])
+    exp_expected = [0.0, 0.0, 1.0]
+    np.testing.assert_allclose(exp_expected, result)
 
 
 def test_sync_expectation(qvm):
@@ -204,27 +201,27 @@ def test_sync_expectation_2(qvm):
     np.testing.assert_allclose(exp_expected, result)
 
 
-def test_sync_paulisum_expectation(qvm: QVMConnection):
+def test_sync_paulisum_expectation(qvm: QVMConnection, httpx_mock: HTTPXMock):
     mock_qvm = qvm
-    mock_endpoint = mock_qvm.sync_endpoint
-
-    def mock_response(request, context):
-        assert json.loads(request.text) == {
+    mock_endpoint = mock_qvm.client.qvm_url
+    httpx_mock.add_response(
+        method="POST",
+        url=mock_endpoint,
+        match_content=json.dumps({
             "type": "expectation",
             "state-preparation": BELL_STATE.out(),
             "operators": ["Z 0\nZ 1\n", "Z 0\n", "Z 1\n"],
             "rng-seed": 52,
-        }
-        return b"[1.0, 0.0, 0.0]"
+        }).encode(),
+        json=[1.0, 0.0, 0.0]
+    )
 
-    with requests_mock.Mocker() as m:
-        m.post(mock_endpoint + "/qvm", content=mock_response)
-        z0 = PauliTerm("Z", 0)
-        z1 = PauliTerm("Z", 1)
-        z01 = z0 * z1
-        result = mock_qvm.pauli_expectation(BELL_STATE, 1j * z01 + z0 + z1)
-        exp_expected = 1j
-        np.testing.assert_allclose(exp_expected, result)
+    z0 = PauliTerm("Z", 0)
+    z1 = PauliTerm("Z", 1)
+    z01 = z0 * z1
+    result = mock_qvm.pauli_expectation(BELL_STATE, 1j * z01 + z0 + z1)
+    exp_expected = 1j
+    np.testing.assert_allclose(exp_expected, result)
 
 
 def test_sync_wavefunction(qvm):
