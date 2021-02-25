@@ -12,7 +12,7 @@ from pyquil.api._logger import logger
 
 class Client:
     """
-    Class for interacting with network resources.
+    Class for housing application configuration and interacting with network resources.
     """
 
     _http: Optional[httpx.Client]
@@ -57,6 +57,13 @@ class Client:
         Quil compiler URL from client configuration.
         """
         return self._config.profile.applications.pyquil.quilc_url
+
+    @property
+    def qpu_compiler_url(self) -> str:
+        """
+        QPU compiler URL from client configuration.
+        """
+        return self._config.profile.applications.pyquil.qpu_compiler_url
 
     def qvm_version(self) -> str:
         """

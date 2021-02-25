@@ -262,6 +262,7 @@ def test_prepare_register_list():
 
 
 def test_get_qc_returns_remote_qvm_compiler():
+    # TODO(andrew): update this test wrt env var
     with patch.dict("os.environ", {"COMPILER_URL": "tcp://192.168.0.0:5550"}):
         qc = get_qc("9q-square-qvm")
         assert isinstance(qc.compiler, QVMCompiler)

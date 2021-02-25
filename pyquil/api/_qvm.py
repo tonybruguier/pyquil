@@ -63,6 +63,7 @@ def check_qvm_version(version: str) -> None:
         )
 
 
+# TODO: remove this
 class QVMConnection(object):
     """
     Represents a connection to the QVM.

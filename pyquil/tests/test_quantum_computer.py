@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 
 from pyquil import Program, get_qc, list_quantum_computers
-from pyquil.api import QVM, QuantumComputer, local_forest_runtime
+from pyquil.api import QVM, QuantumComputer, local_forest_runtime, Client
 from pyquil.api._quantum_computer import (
     _symmetrization,
     _flip_array_to_prog,
@@ -135,14 +135,14 @@ def test_construct_strength_two_orthogonal_array():
     assert np.allclose(_construct_strength_two_orthogonal_array(3), answer)
 
 
-def test_measure_bitstrings(forest):
+def test_measure_bitstrings(client: Client):
     device = NxDevice(nx.complete_graph(2))
     qc_pyqvm = QuantumComputer(
         name="testy!", qam=PyQVM(n_qubits=2), device=device, compiler=DummyCompiler()
     )
     qc_forest = QuantumComputer(
         name="testy!",
-        qam=QVM(connection=forest, gate_noise=[0.00] * 3),
+        qam=QVM(client=client, gate_noise=[0.00] * 3),
         device=device,
         compiler=DummyCompiler(),
     )
@@ -201,11 +201,11 @@ def test_device_stuff():
 # We sometimes narrowly miss the np.mean(parity) < 0.15 assertion, below. Alternatively, that upper
 # bound could be relaxed.
 @pytest.mark.flaky(reruns=1)
-def test_run(forest):
+def test_run(client: Client):
     device = NxDevice(nx.complete_graph(3))
     qc = QuantumComputer(
         name="testy!",
-        qam=QVM(connection=forest, gate_noise=[0.01] * 3),
+        qam=QVM(client=client, gate_noise=[0.01] * 3),
         device=device,
         compiler=DummyCompiler(),
     )
@@ -261,12 +261,12 @@ def test_run_pyqvm_noisy():
     assert 0 < np.mean(parity) < 0.15
 
 
-def test_readout_symmetrization(forest):
+def test_readout_symmetrization(client: Client):
     device = NxDevice(nx.complete_graph(3))
     noise_model = decoherence_noise_with_asymmetric_ro(gates=gates_in_isa(device.get_isa()))
     qc = QuantumComputer(
         name="testy!",
-        qam=QVM(connection=forest, noise_model=noise_model),
+        qam=QVM(client=client, noise_model=noise_model),
         device=device,
         compiler=DummyCompiler(),
     )
@@ -489,7 +489,7 @@ def test_run_and_measure_noiseless_qvm():
     assert all(bitstring_array[0][1:] == np.zeros(len(qc.qubits()) - 1))
 
 
-def test_qvm_compile_pickiness(forest):
+def test_qvm_compile_pickiness(client: Client):
     p = Program(Declare("ro", "BIT"), X(0), MEASURE(0, MemoryReference("ro")))
     p.wrap_in_numshots_loop(1000)
     nq = PyQuilExecutableResponse(program=p.out(), attributes={"num_shots": 1000})
@@ -510,10 +510,10 @@ def test_qvm_compile_pickiness(forest):
     qc.run(nq)
 
 
-def test_run_with_parameters(forest):
+def test_run_with_parameters(client: Client):
     device = NxDevice(nx.complete_graph(3))
     qc = QuantumComputer(
-        name="testy!", qam=QVM(connection=forest), device=device, compiler=DummyCompiler()
+        name="testy!", qam=QVM(client=client), device=device, compiler=DummyCompiler()
     )
     bitstrings = qc.run(
         executable=Program(
@@ -529,10 +529,10 @@ def test_run_with_parameters(forest):
     assert all([bit == 1 for bit in bitstrings])
 
 
-def test_reset(forest):
+def test_reset(client: Client):
     device = NxDevice(nx.complete_graph(3))
     qc = QuantumComputer(
-        name="testy!", qam=QVM(connection=forest), device=device, compiler=DummyCompiler()
+        name="testy!", qam=QVM(client=client), device=device, compiler=DummyCompiler()
     )
     p = Program(
         Declare(name="theta", memory_type="REAL"),
@@ -557,17 +557,17 @@ def test_reset(forest):
     assert qc.qam.status == "connected"
 
 
-def test_get_qvm_with_topology():
+def test_get_qvm_with_topology(client: Client):
     topo = nx.from_edgelist([(5, 6), (6, 7), (10, 11)])
     # Note to developers: perhaps make `get_qvm_with_topology` public in the future
-    qc = _get_qvm_with_topology(name="test-qvm", topology=topo)
+    qc = _get_qvm_with_topology(name="test-qvm", topology=topo, client=client)
     assert len(qc.qubits()) == 5
     assert min(qc.qubits()) == 5
 
 
-def test_get_qvm_with_topology_2(forest):
+def test_get_qvm_with_topology_2(client: Client):
     topo = nx.from_edgelist([(5, 6), (6, 7)])
-    qc = _get_qvm_with_topology(name="test-qvm", topology=topo)
+    qc = _get_qvm_with_topology(name="test-qvm", topology=topo, client=client)
     results = qc.run_and_measure(Program(X(5)), trials=5)
     assert sorted(results.keys()) == [5, 6, 7]
     assert all(x == 1 for x in results[5])
@@ -579,10 +579,10 @@ def test_parse_mix_qvm_and_noisy_flag():
     assert noisy
 
 
-def test_noisy(forest):
+def test_noisy(client: Client):
     # https://github.com/rigetti/pyquil/issues/764
     p = Program(X(0))
-    qc = get_qc("1q-qvm", noisy=True)
+    qc = get_qc("1q-qvm", noisy=True, client=client)
     result = qc.run_and_measure(p, trials=10000)
     assert result[0].mean() < 1.0
 

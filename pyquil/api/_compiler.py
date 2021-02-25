@@ -16,11 +16,12 @@
 import logging
 import sys
 import warnings
+
+import rpcq
 from requests.exceptions import RequestException
 from typing import Dict, Any, Optional, Union, cast, List, Tuple
 
 from rpcq._base import Message, to_json, from_json
-from rpcq._client import Client
 from rpcq.messages import (
     QuiltCalibrationsRequest,
     QuiltCalibrationsResponse,
@@ -33,6 +34,7 @@ from rpcq.messages import (
 )
 from urllib.parse import urljoin
 
+from pyquil import api
 from pyquil.api._qac import AbstractCompiler
 from pyquil.api._error_reporting import _record_call
 from pyquil.api._errors import UserMessageError
@@ -192,33 +194,33 @@ class QPUCompiler(AbstractCompiler):
     @_record_call
     def __init__(
         self,
-        quilc_endpoint: Optional[str],  # TODO(andrew): remove these endpoints?
-        qpu_compiler_endpoint: Optional[str],
         device: AbstractDevice,
+        quilc_endpoint: Optional[str] = None,
+        qpu_compiler_endpoint: Optional[str] = None,
         timeout: float = 10,
-        name: Optional[str] = None
+        name: Optional[str] = None,
+        client: Optional[api.Client] = None,
     ) -> None:
         """
         Client to communicate with the Compiler Server.
 
-        :param quilc_endpoint: TCP or IPC endpoint of the Quil Compiler (quilc).
-        :param qpu_compiler_endpoint: TCP or IPC endpoint of the QPU Compiler.
+        :param quilc_endpoint: Optional TCP or IPC endpoint of the Quil Compiler (quilc). If omitted, endpoint will be
+               derived from QCS client.
+        :param qpu_compiler_endpoint: Optional TCP or IPC endpoint of the QPU Compiler. If omitted, endpoint will be
+               derived from QCS client.
         :param device: PyQuil Device object to use as compilation target.
         :param timeout: Number of seconds to wait for a response from the client.
         :param name: Name of the lattice being targeted.
-        :param session: ForestSession object, which manages engagement and configuration.
+        :param client: Optional QCS client. If none is provided, a default client will be created.
         """
+        self._api_client = client or api.Client()
 
         self.timeout = timeout
 
-        if quilc_endpoint:
-            _quilc_endpoint = quilc_endpoint
-        elif self.session and self.session.config.quilc_url:
-            _quilc_endpoint = self.session.config.quilc_url
-        else:
-            raise ValueError("Must provide a 'quilc_endpoint' or a 'session'")
+        quilc_endpoint = quilc_endpoint or client.quilc_url
 
-        if not _quilc_endpoint.startswith("tcp://"):
+        if not quilc_endpoint.startswith("tcp://"):
+            # TODO(andrew): Update env var in message
             raise ValueError(
                 f"PyQuil versions >= 2.4 can only talk to quilc "
                 f"versions >= 1.4 over network RPCQ.  You've supplied the "
@@ -229,10 +231,10 @@ class QPUCompiler(AbstractCompiler):
                 f"compiler_server_address line from your .forest_config file."
             )
 
-        self.quilc_client = Client(_quilc_endpoint, timeout=timeout)
+        self.quilc_client = rpcq.Client(quilc_endpoint, timeout=timeout)
 
         self.qpu_compiler_endpoint = qpu_compiler_endpoint
-        self._qpu_compiler_client: Optional[Union[Client, HTTPCompilerClient]] = None
+        self._qpu_compiler_client: Optional[Union[rpcq.Client, HTTPCompilerClient]] = None
         self._calibration_program = None
 
         self._device = device
@@ -248,33 +250,26 @@ class QPUCompiler(AbstractCompiler):
             warnings.warn(f"{e}. Compilation using the QPU compiler will not be available.")
 
     @property
-    def qpu_compiler_client(self) -> Optional[Union[Client, "HTTPCompilerClient"]]:
+    def qpu_compiler_client(self) -> Optional[Union[rpcq.Client, "HTTPCompilerClient"]]:
         if not self._qpu_compiler_client:
-            endpoint: Optional[str] = None
-            if self.qpu_compiler_endpoint:
-                endpoint = self.qpu_compiler_endpoint
-            elif self.session:
-                endpoint = self.session.config.qpu_compiler_url
+            endpoint = self.qpu_compiler_endpoint or self._api_client.qpu_compiler_url
 
-            if endpoint is not None:
-                if endpoint.startswith(("http://", "https://")):
-                    assert isinstance(self._device, Device) and self.session is not None
-                    device_endpoint = urljoin(
-                        endpoint, f'devices/{self._device._raw["device_name"]}/'
-                    )
-                    self._qpu_compiler_client = HTTPCompilerClient(
-                        endpoint=device_endpoint, session=self.session
-                    )
-                elif endpoint.startswith("tcp://"):
-                    self._qpu_compiler_client = Client(endpoint, timeout=self.timeout)
-                else:
-                    raise UserMessageError(
-                        "Invalid endpoint provided to QPUCompiler. Expected protocol in [http://, "
-                        f"https://, tcp://], but received endpoint {endpoint}"
-                    )
+            if endpoint.startswith(("http://", "https://")):
+                assert isinstance(self._device, Device)
+                device_endpoint = urljoin(endpoint, f'devices/{self._device._raw["device_name"]}/')
+                self._qpu_compiler_client = HTTPCompilerClient(
+                    endpoint=device_endpoint, #session=self.session TODO(andrew): use client
+                )
+            elif endpoint.startswith("tcp://"):
+                self._qpu_compiler_client = rpcq.Client(endpoint, timeout=self.timeout)
+            else:
+                raise UserMessageError(
+                    "Invalid endpoint provided to QPUCompiler. Expected protocol in [http://, "
+                    f"https://, tcp://], but received endpoint {endpoint}"
+                )
 
         assert (
-            isinstance(self._qpu_compiler_client, (Client, HTTPCompilerClient))
+            isinstance(self._qpu_compiler_client, (rpcq.Client, HTTPCompilerClient))
             or self._qpu_compiler_client is None
         )
         return self._qpu_compiler_client
@@ -460,7 +455,7 @@ class QVMCompiler(AbstractCompiler):
             )
 
         self.endpoint = endpoint
-        self.client = Client(endpoint, timeout=timeout)
+        self.client = rpcq.Client(endpoint, timeout=timeout)
         td = TargetDevice(isa=device.get_isa().to_dict(), specs=None)  # type: ignore
         self.target_device = td
 
@@ -507,10 +502,10 @@ class QVMCompiler(AbstractCompiler):
         """
         timeout = self.client.timeout
         self.client.close()  # type: ignore
-        self.client = Client(self.endpoint, timeout=timeout)
+        self.client = rpcq.Client(self.endpoint, timeout=timeout)
 
     @property
-    def quilc_client(self) -> Client:
+    def quilc_client(self) -> rpcq.Client:
         """Return the `Client` for the compiler (i.e. quilc, not translation service)."""
         return self.client
 
@@ -556,6 +551,7 @@ class HTTPCompilerClient:
     """
 
     endpoint: str
+    # session: ForestSession  TODO(andrew): use client here?
 
     def call(
         self, method: str, payload: Optional[Message] = None, *, rpc_timeout: float = 30

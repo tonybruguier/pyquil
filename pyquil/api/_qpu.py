@@ -22,6 +22,7 @@ import numpy as np
 from rpcq._client import Client, ClientAuthConfig
 from rpcq.messages import QuiltBinaryExecutableResponse, QPURequest, ParameterAref, ParameterSpec
 
+from pyquil import api
 from pyquil.parser import parse
 from pyquil.api._error_reporting import _record_call
 from pyquil.api._errors import UserMessageError
@@ -96,28 +97,23 @@ def _extract_memory_regions(
     return regions
 
 
-# TODO(andrew): needs client?
 class QPU(QAM):
     @_record_call
     def __init__(
         self,
-        endpoint: Optional[str] = None,
+        client: Optional[api.Client] = None,
         user: str = "pyquil-user",
         priority: int = 1
     ) -> None:
         """
         A connection to the QPU.
 
-        :param endpoint: Address to connect to the QPU server. If not provided, the
-                         endpoint provided by engagement with dispatch is used. One or both must be
-                         available and valid.
+        :param client: Optional QCS client. If none is provided, a default client will be created.
         :param user: A string identifying who's running jobs.
         :param priority: The priority with which to insert jobs into the QPU queue. Lower
                          integers correspond to higher priority.
-        :param session: ForestSession object, which manages engagement and configuration.
         """
 
-        self.endpoint = endpoint
         self.priority = priority
         self.user = user
         self._client: Optional[Client] = None
