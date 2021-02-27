@@ -13,21 +13,18 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 ##############################################################################
-from collections import defaultdict
 import uuid
 import warnings
+from collections import defaultdict
 from typing import Any, Dict, List, Optional, Tuple, Union, cast
 
 import numpy as np
-from rpcq._client import Client, ClientAuthConfig
 from rpcq.messages import QuiltBinaryExecutableResponse, QPURequest, ParameterAref, ParameterSpec
 
-from pyquil import api
-from pyquil.parser import parse
+from pyquil.api import Client
 from pyquil.api._error_reporting import _record_call
-from pyquil.api._errors import UserMessageError
-from pyquil.api._logger import logger
 from pyquil.api._qam import QAM
+from pyquil.parser import parse
 from pyquil.quil import Program
 from pyquil.quilatom import MemoryReference, BinaryExp, Function, Parameter, ExpressionDesignator
 from pyquil.quilbase import Gate
@@ -101,8 +98,8 @@ class QPU(QAM):
     @_record_call
     def __init__(
         self,
-        client: Optional[api.Client] = None,
-        user: str = "pyquil-user",
+        processor_id: str,
+        client: Optional[Client] = None,
         priority: int = 1
     ) -> None:
         """
@@ -113,62 +110,30 @@ class QPU(QAM):
         :param priority: The priority with which to insert jobs into the QPU queue. Lower
                          integers correspond to higher priority.
         """
-
+        self.processor_id = processor_id
         self.priority = priority
-        self.user = user
-        self._client: Optional[Client] = None
+        self._client = client or Client()
         self._last_results: Dict[str, np.ndarray] = {}
 
         super().__init__()
 
-    def _build_client(self) -> Client:
-        endpoint: Optional[str] = None
-        if self.endpoint:
-            endpoint = self.endpoint
-        elif self.session and self.session.config.qpu_url:
-            endpoint = self.session.config.qpu_url
-
-        if endpoint is None:
-            raise UserMessageError(
-                """It looks like you've tried to run a program against a QPU but do
-not currently have a reservation on one. To reserve time on Rigetti
-QPUs, use the command line interface, qcs, which comes pre-installed
-in your QMI. From within your QMI, type:
-
-    qcs reserve --lattice <lattice-name>
-
-For more information, please see the docs at
-https://www.rigetti.com/qcs/docs/reservations or reach out to Rigetti
-support at support@rigetti.com."""
-            )
-
-        logger.debug("QPU Client connecting to %s", endpoint)
-
-        return Client(endpoint, auth_config=self._get_client_auth_config())
-
-    @property
-    def client(self) -> Client:
-        """
-        Return a memoized client with a valid engagement if it exists; otherwise, build a new one
-        and return it. If this QPU object does not have a ForestSession, then engagement is not
-        applicable.
-        """
-        engagement_is_valid = self._client_engagement and self._client_engagement.is_valid()
-        if not (self._client and (self.session is None or engagement_is_valid)):
-            self._client = self._build_client()
-        return self._client
-
-    def _get_client_auth_config(self) -> Optional[ClientAuthConfig]:
-        if self.session and self.session.config.engagement is not None:
-            # We store the engagement used to construct this client so that we can later check
-            # for validity
-            self._client_engagement = self.session.config.engagement
-            return ClientAuthConfig(
-                client_public_key=self._client_engagement.client_public_key,
-                client_secret_key=self._client_engagement.client_secret_key,
-                server_public_key=self._client_engagement.server_public_key,
-            )
-        return None
+# TODO(andrew): figure out where to put this
+#
+#     UserMessageError(
+#                 """It looks like you've tried to run a program against a QPU but do
+# not currently have a reservation on one. To reserve time on Rigetti
+# QPUs, use the command line interface, qcs, which comes pre-installed
+# in your QMI. From within your QMI, type:
+#
+#     qcs reserve --lattice <lattice-name>
+#
+# For more information, please see the docs at
+# https://www.rigetti.com/qcs/docs/reservations or reach out to Rigetti
+# support at support@rigetti.com."""
+#             )
+#
+#         logger.debug("QPU Client connecting to %s", endpoint)
+#
 
     def get_version_info(self) -> Dict[str, Any]:
         """
@@ -234,8 +199,11 @@ support at support@rigetti.com."""
         )
 
         job_priority = run_priority if run_priority is not None else self.priority
-        job_id = self.client.call(
-            "execute_qpu_request", request=request, user=self.user, priority=job_priority
+        job_id = self._client.rpcq_request(
+            processor_id=self.processor_id,
+            method_name="execute_qpu_request",
+            request=request,
+            priority=job_priority
         )
         results = self._get_buffers(job_id)
         ro_sources = self._executable.ro_sources
@@ -392,5 +360,4 @@ support at support@rigetti.com."""
         Reset the state of the underlying QAM, and the QPU Client connection.
         """
         super().reset()
-
-        self._client = None
+        self._client.reset()

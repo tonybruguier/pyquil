@@ -1,10 +1,17 @@
 import re
 from contextlib import contextmanager
+from datetime import datetime
 from json.decoder import JSONDecodeError
-from typing import Optional, Any
+from typing import Optional, Any, Callable
 
 import httpx
+import rpcq
+from dateutil.parser import parse as parsedate
+from dateutil.tz import tzutc
 from qcs_api_client.client import QCSClientConfiguration, build_sync_client
+from qcs_api_client.models import EngagementWithCredentials, CreateEngagementRequest
+from qcs_api_client.operations.sync import create_engagement
+from qcs_api_client.types import Response
 
 from pyquil.api._errors import ApiError, UnknownApiError, TooManyQubitsError, error_mapping
 from pyquil.api._logger import logger
@@ -16,7 +23,9 @@ class Client:
     """
 
     _http: Optional[httpx.Client]
+    _rpcq: Optional[rpcq.Client] = None
     _config: QCSClientConfiguration
+    _engagement: Optional[EngagementWithCredentials] = None
 
     def __init__(self, http: Optional[httpx.Client] = None, configuration: Optional[QCSClientConfiguration] = None):
         """
@@ -29,20 +38,52 @@ class Client:
         self._config = configuration or QCSClientConfiguration.load()
         self._http = http
 
-    def post_json(self, url: str, json: Any) -> httpx.Response:
+    def post_json(self, url: str, json: Any, timeout: float = 5) -> httpx.Response:
         """
         Post JSON to a URL. Will raise an exception for response statuses >= 400.
 
         :param url: URL to post to.
         :param json: JSON body of request.
+        :param timeout: Time limit for request, in seconds.
         :return: HTTP response corresponding to request.
         """
         logger.debug("Sending POST request to %s. Body: %s", url, json)
-        with self._client() as client:
-            res = client.post(url, json=json)
+        with self._http_client() as http:
+            res = http.post(url, json=json, timeout=timeout)
             if res.status_code >= 400:
                 raise _parse_error(res)
         return res
+
+    def qcs_request(self, request_fn: Callable[..., httpx.Response], **kwargs: Any) -> Response:
+        """
+        Execute a QCS request.
+
+        :param request_fn: Request function (from ``qcs_api_client.operations.sync``).
+        :param kwargs: Arguments to pass to request function.
+        :return: HTTP response corresponding to request.
+        """
+        with self._http_client() as http:
+            return request_fn(client=http, **kwargs)
+
+    def rpcq_request(self, processor_id: str, method_name: str, *args: Any, timeout: Optional[float] = None, **kwargs) -> Any:
+        """
+        Execute a remote function against current engagement endpoint. If there is no current engagement, or if it is
+        invalid, a new engagement will be requested for the given processor.
+
+        :param processor_id: Processor to engage.
+        :param method_name: Method name.
+        :param args: Args that will be passed to the remote function.
+        :param float timeout: Optional time limit for request, in seconds.
+        :param kwargs: Keyword args that will be passed to the remote function.
+        :return: Result from remote function.
+        """
+        return self._rpcq_client(processor_id).call(method_name, *args, timeout, **kwargs)
+
+    def reset(self):
+        """
+        Clears current engagement.
+        """
+        self._engagement = None  # Causes a new rpcq client to be created on next use
 
     @property
     def qvm_url(self) -> str:
@@ -65,6 +106,13 @@ class Client:
         """
         return self._config.profile.applications.pyquil.qpu_compiler_url
 
+    @property
+    def qpu_url(self) -> str:
+        """
+        QPU URL from client configuration.
+        """
+        return self._config.profile.applications.pyquil.qpu_url
+
     def qvm_version(self) -> str:
         """
         Get QVM version string.
@@ -78,12 +126,51 @@ class Client:
         return qvm_version
 
     @contextmanager
-    def _client(self) -> httpx.Client:
+    def _http_client(self) -> httpx.Client:
         if self._http is None:
             with build_sync_client(configuration=self._config) as client:
                 yield client
         else:
             yield self._http
+
+    def _rpcq_client(self, processor_id: str) -> rpcq.Client:
+        if not (self._rpcq and _engagement_valid(processor_id, self._engagement)):
+            self._engagement = self._create_engagement(processor_id)
+            self._rpcq = rpcq.Client(
+                endpoint=self._engagement.address,
+                auth_config=_to_auth_config(self._engagement)
+            )
+        return self._rpcq
+
+    def _create_engagement(self, processor_id: str) -> EngagementWithCredentials:
+        return self.qcs_request(
+            create_engagement,
+            json_body=CreateEngagementRequest(quantum_processor_id=processor_id)
+        ).parsed
+
+
+def _engagement_valid(processor_id: str, engagement: Optional[EngagementWithCredentials]) -> bool:
+    if engagement is None:
+        return False
+
+    return all(
+        [
+            engagement.credentials.client_public != "",
+            engagement.credentials.client_secret != "",
+            engagement.credentials.server_public != "",
+            engagement.expires_at == "" or parsedate(engagement.expires_at) > datetime.now(tzutc()),
+            engagement.address != "",
+            engagement.quantum_processor_id == processor_id
+        ]
+    )
+
+
+def _to_auth_config(engagement: EngagementWithCredentials):
+    return rpcq.ClientAuthConfig(
+        client_secret_key=engagement.credentials.client_secret.encode(),
+        client_public_key=engagement.credentials.client_public.encode(),
+        server_public_key=engagement.credentials.server_public.encode()
+    )
 
 
 def _parse_error(res: httpx.Response) -> ApiError:

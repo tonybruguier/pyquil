@@ -34,6 +34,7 @@ from pyquil.api._error_reporting import _record_call
 from pyquil.api._qac import AbstractCompiler
 from pyquil.api._qam import QAM
 from pyquil.api._qpu import QPU
+from pyquil.api._quantum_processors import get_device
 from pyquil.api._qvm import QVM
 from pyquil.device._main import AbstractDevice, Device, NxDevice
 from pyquil.device._isa import gates_in_isa, ISA
@@ -528,7 +529,7 @@ def list_quantum_computers(
     """
     qc_names: List[str] = []
     if qpus:
-        qc_names += []# list(list_lattices(connection=connection).keys()) TODO(andrew): use qcs client
+        qc_names += ["U057-W1845B-088-B1-a2-ISW"]# list(list_lattices(connection=connection).keys()) TODO(andrew): use qcs client
 
     if qvms:
         qc_names += ["9q-square-qvm", "9q-square-noisy-qvm"]
@@ -921,7 +922,7 @@ def get_qc(
         )
 
     # 4. Not a special case, query the web for information about this device.
-    device = None  # get_lattice(prefix) TODO(andrew): replace with client call
+    device = get_device(client, prefix)
     if qvm_type is not None:
         # 4.1 QVM based on a real device.
         return _get_qvm_based_on_real_device(
@@ -940,13 +941,14 @@ def get_qc(
                 "is meant for controlling noise models on QVMs."
             )
 
-        qpu = QPU(endpoint=None)  #, user=pyquil_config.user_id, session=session) TODO(andrew): replace with client
+        qpu = QPU(processor_id=device.name, client=client)
 
         compiler = QPUCompiler(
             quilc_endpoint=None,
             qpu_compiler_endpoint=None,
             device=device,
             name=prefix,
+            client=client,
             timeout=compiler_timeout,
         )
 

@@ -1,32 +1,31 @@
 import networkx as nx
 import numpy as np
 import pytest
+from qcs_api_client.models import EngagementWithCredentials, EngagementCredentials
 
 from rpcq.messages import ParameterAref
 
 from pyquil.parser import parse
 from pyquil import Program, get_qc
-from pyquil.api import QuantumComputer, QPU, QPUCompiler
-from pyquil.api._base_connection import Engagement, get_session
+from pyquil.api import QuantumComputer, QPU, QPUCompiler, Client
 from pyquil.device import NxDevice
 from pyquil.gates import I, X
 from pyquil.quilatom import Expression
 
 
-def test_qpu_run():
-    config = PyquilConfig()
-    if config.qpu_url and config.qpu_compiler_url:
+def test_qpu_run(client: Client):
+    if client.qpu_url and client.qpu_compiler_url:
         g = nx.Graph()
         g.add_node(0)
         device = NxDevice(g)
 
         qc = QuantumComputer(
             name="pyQuil test QC",
-            qam=QPU(endpoint=config.qpu_url, user="pyQuil test suite"),
+            qam=QPU(endpoint=client.qpu_url, user="pyQuil test suite"),
             device=device,
             compiler=QPUCompiler(
                 quilc_endpoint=config.quilc_url,
-                qpu_compiler_endpoint=config.qpu_compiler_url,
+                qpu_compiler_endpoint=client.qpu_compiler_url,
                 device=device,
             ),
         )
@@ -90,12 +89,11 @@ def mock_qpu():
 
 
 @pytest.fixture
-def qpu_compiler(test_device):
+def qpu_compiler(test_device, client: Client):
     try:
-        config = PyquilConfig()
         compiler = QPUCompiler(
-            quilc_endpoint=config.quilc_url,
-            qpu_compiler_endpoint=config.qpu_compiler_url,
+            quilc_endpoint=client.quilc_url,
+            qpu_compiler_endpoint=client.qpu_compiler_url,
             device=test_device,
             timeout=0.5,
         )
@@ -206,62 +204,62 @@ def test_run_expects_executable(qvm, qpu_compiler):
     with pytest.raises(TypeError):
         qc.run(p)
 
-
-def test_qpu_not_engaged_error():
-    with pytest.raises(ValueError):
-        QPU()
-
-
-def test_qpu_does_not_engage_without_session():
-    qpu = QPU(endpoint="tcp://fake.qpu:50052")
-
-    assert qpu._get_client_auth_config() is None
+# TODO(andrew): does this need to be implemented?
+# def test_qpu_not_engaged_error():
+#     with pytest.raises(ValueError):
+#         QPU()
 
 
-def test_qpu_reengage_when_invalid():
-    config = PyquilConfig()
-    engagement = Engagement(
-        server_public_key=b"abc123",
-        client_public_key=b"abc123",
-        client_secret_key=b"abc123",
-        expires_at=9999999999.0,
-        qpu_endpoint="tcp://fake.qpu:50053",
-        qpu_compiler_endpoint="tcp://fake.compiler:5555",
-    )
+# TODO(andrew): deferring this
+# def test_qpu_does_not_engage_without_session():
+#     qpu = QPU(endpoint="tcp://fake.qpu:50052")
+#
+#     assert qpu._get_client_auth_config() is None
 
-    assert engagement.is_valid()
-
-    session = get_session(config=config)
-    config._engagement_requested = True
-    config.get_engagement = lambda: engagement
-
-    qpu = QPU(session=session)
-
-    assert qpu._client_engagement is None
-    assert qpu._get_client_auth_config() is not None
-    assert qpu._client_engagement is engagement
-
-    # By expiring the previous engagement, we expect QPU to attempt to re-engage
-    engagement.expires_at = 0.0
-    assert not engagement.is_valid()
-
-    new_engagement = Engagement(
-        server_public_key=b"abc12345",
-        client_public_key=b"abc12345",
-        client_secret_key=b"abc12345",
-        expires_at=9999999999.0,
-        qpu_endpoint="tcp://fake.qpu:50053",
-        qpu_compiler_endpoint="tcp://fake.compiler:5555",
-    )
-
-    config.get_engagement = lambda: new_engagement
-
-    new_auth_config = qpu._get_client_auth_config()
-    assert new_auth_config is not None
-    assert new_auth_config.client_public_key == new_engagement.client_public_key
-    assert qpu._client_engagement is new_engagement
-
-    new_engagement.expires_at = 0.0
-    config.get_engagement = lambda: None
-
-    assert qpu._get_client_auth_config() is None
+# TODO(andrew): does QPU still need to do this?
+# def test_qpu_reengage_when_invalid(client: Client):
+#     engagement = EngagementWithCredentials(
+#         address="tcp://fake.qpu:50053",
+#         credentials=EngagementCredentials(client_public="abc123", client_secret="abc123", server_public="abc123"),
+#         endpoint_id="some-endpoint",
+#         expires_at="9999-01-01T00:00:00Z",
+#         quantum_processor_id="some-processor",
+#         user_id="some-user"
+#     )
+#
+#     assert engagement.is_valid()
+#
+#     session = get_session(config=config)
+#     config._engagement_requested = True
+#     config.get_engagement = lambda: engagement
+#
+#     qpu = QPU(session=session)
+#
+#     assert qpu._client_engagement is None
+#     assert qpu._get_client_auth_config() is not None
+#     assert qpu._client_engagement is engagement
+#
+#     # By expiring the previous engagement, we expect QPU to attempt to re-engage
+#     engagement.expires_at = 0.0
+#     assert not engagement.is_valid()
+#
+#     new_engagement = Engagement(
+#         server_public_key=b"abc12345",
+#         client_public_key=b"abc12345",
+#         client_secret_key=b"abc12345",
+#         expires_at=9999999999.0,
+#         qpu_endpoint="tcp://fake.qpu:50053",
+#         qpu_compiler_endpoint="tcp://fake.compiler:5555",
+#     )
+#
+#     config.get_engagement = lambda: new_engagement
+#
+#     new_auth_config = qpu._get_client_auth_config()
+#     assert new_auth_config is not None
+#     assert new_auth_config.client_public_key == new_engagement.client_public_key
+#     assert qpu._client_engagement is new_engagement
+#
+#     new_engagement.expires_at = 0.0
+#     config.get_engagement = lambda: None
+#
+#     assert qpu._get_client_auth_config() is None

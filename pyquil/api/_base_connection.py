@@ -13,30 +13,10 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 ##############################################################################
-import re
-import time
-import warnings
 
-from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple, Union, cast
-
-import numpy as np
-import requests
-from httpx import Client, Response
-from requests.adapters import HTTPAdapter
-from urllib3 import Retry
-
-from pyquil.api._error_reporting import _record_call
-from pyquil.api._errors import (
-    error_mapping,
-    ApiError,
-    UserMessageError,
-    UnknownApiError,
-    TooManyQubitsError,
-)
+from typing import Dict, Iterable, List, Optional, Sequence, Tuple, Union
 
 from pyquil.quil import Program
-from pyquil.version import __version__
-from pyquil.wavefunction import Wavefunction
 
 TYPE_EXPECTATION = "expectation"
 TYPE_MULTISHOT = "multishot"

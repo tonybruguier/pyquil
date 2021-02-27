@@ -14,5 +14,16 @@
 #    limitations under the License.
 ##############################################################################
 
+from pyquil.api import Client
+from pyquil.api._client import _parse_error
+from pyquil.device import Device
 
 
+# TODO(andrew): update to get new ISA and instantiate a device, using new endpoints (and client functions)
+def get_device(client: Client, processor_id: str) -> Device:
+    # STUB FOR NOW ################
+    with client._http_client() as client:
+        res = client.get("https://forest-server.qcs.rigetti.com/devices/"+processor_id)
+        if res.status_code >= 400:
+            raise _parse_error(res)
+    return Device(processor_id, res.json()["device"])

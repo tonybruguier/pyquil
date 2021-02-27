@@ -35,6 +35,7 @@ from rpcq.messages import (
 from urllib.parse import urljoin
 
 from pyquil import api
+from pyquil.api import Client
 from pyquil.api._qac import AbstractCompiler
 from pyquil.api._error_reporting import _record_call
 from pyquil.api._errors import UserMessageError
@@ -256,10 +257,8 @@ class QPUCompiler(AbstractCompiler):
 
             if endpoint.startswith(("http://", "https://")):
                 assert isinstance(self._device, Device)
-                device_endpoint = urljoin(endpoint, f'devices/{self._device._raw["device_name"]}/')
-                self._qpu_compiler_client = HTTPCompilerClient(
-                    endpoint=device_endpoint, #session=self.session TODO(andrew): use client
-                )
+                device_endpoint = urljoin(endpoint, f'devices/{self._device._raw["name"]}/')
+                self._qpu_compiler_client = HTTPCompilerClient(endpoint=device_endpoint, client=self._api_client)
             elif endpoint.startswith("tcp://"):
                 self._qpu_compiler_client = rpcq.Client(endpoint, timeout=self.timeout)
             else:
@@ -547,11 +546,11 @@ class HTTPCompilerClient:
     send compilation requests over HTTP(S) rather than ZeroMQ.
 
     :param endpoint: The base url to which rpcq methods will be appended.
-    :param session: The ForestSession object which manages headers and authentication.
+    :param client: QCS client.
     """
 
     endpoint: str
-    # session: ForestSession  TODO(andrew): use client here?
+    client: Client
 
     def call(
         self, method: str, payload: Optional[Message] = None, *, rpc_timeout: float = 30
@@ -583,7 +582,7 @@ class HTTPCompilerClient:
         else:
             body = None
 
-        response = self.session.post(url, json=body, timeout=rpc_timeout)
+        response = self.client.post_json(url, body, rpc_timeout)
 
         try:
             response.raise_for_status()
