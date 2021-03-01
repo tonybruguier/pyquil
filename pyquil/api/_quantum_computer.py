@@ -496,11 +496,12 @@ class QuantumComputer:
         binary = self.compiler.native_quil_to_executable(nq_program)
         return binary
 
+    # TODO(andrew): revisit this
     @_record_call
     def reset(self) -> None:
         """
         Reset the QuantumComputer's QAM to its initial state, and refresh all the connection
-        objects in the event that the ~/.forest_config file has changed during the existence
+        objects in the event that the configuration file has changed during the existence
         of this QuantumComputer object.
         """
         self.qam.reset()

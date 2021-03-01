@@ -16,15 +16,50 @@
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional, Sequence, Union
 
-from rpcq.messages import QuiltBinaryExecutableResponse, PyQuilExecutableResponse
+import rpcq
+from rpcq.messages import QuiltBinaryExecutableResponse, PyQuilExecutableResponse, NativeQuilRequest, TargetDevice
 
+from pyquil import api
+from pyquil.api._error_reporting import _record_call
+from pyquil.device import AbstractDevice
+from pyquil.parser import parse_program
 from pyquil.paulis import PauliTerm
 from pyquil.quil import Program
 from pyquil.quilbase import Gate
+from pyquil.version import __version__
+
+
+class QuilcVersionMismatch(Exception):
+    pass
+
+
+class QuilcNotRunning(Exception):
+    pass
 
 
 class AbstractCompiler(ABC):
     """The abstract interface for a compiler."""
+
+    _target_device: TargetDevice
+    _quilc_client: rpcq.Client
+    _api_client: Optional[api.Client]
+    _timeout: float
+
+    def __init__(
+            self,
+            *,
+            device: AbstractDevice,
+            client: Optional[api.Client],
+            timeout: float = 10
+    ) -> None:
+        self._target_device = TargetDevice(isa=device.get_isa().to_dict(), specs={})
+        self._api_client = client or api.Client()
+        self.set_timeout(timeout)
+
+        if not self._api_client.quilc_url.startswith("tcp://"):
+            raise ValueError(f"Expected compiler URL '{self._api_client.quilc_url}' to use TCP protocol")
+
+        self._quilc_client = rpcq.Client(self._api_client.quilc_url, timeout=timeout)
 
     def get_version_info(self) -> Dict[str, Any]:
         """
@@ -32,9 +67,10 @@ class AbstractCompiler(ABC):
 
         :return: Dictionary of version information.
         """
-        raise NotImplementedError
+        quilc_version_info = self._quilc_client.call("get_version_info")
+        return {"quilc": quilc_version_info}
 
-    @abstractmethod
+    @_record_call
     def quil_to_native_quil(self, program: Program, *, protoquil: Optional[bool] = None) -> Program:
         """
         Compile an arbitrary quil program according to the ISA of target_device.
@@ -43,6 +79,29 @@ class AbstractCompiler(ABC):
         :param protoquil: Whether to restrict to protoquil (``None`` means defer to server)
         :return: Native quil and compiler metadata
         """
+        self._connect()
+        request = NativeQuilRequest(
+            quil=program.out(calibrations=False), target_device=self._target_device
+        )
+        response = self._quilc_client.call(
+            "quil_to_native_quil", request, protoquil=protoquil
+        ).asdict()
+        nq_program = parse_program(response["quil"])
+        nq_program.native_quil_metadata = response["metadata"]
+        nq_program.num_shots = program.num_shots
+        nq_program._calibrations = program.calibrations
+        return nq_program
+
+    def _connect(self) -> None:
+        try:
+            quilc_version_dict = self._quilc_client.call("get_version_info")
+            _check_quilc_version(quilc_version_dict)
+        except TimeoutError:
+            raise QuilcNotRunning(
+                f"Request to quilc at {self._quilc_client.endpoint} timed out. "
+                "This could mean that quilc is not running, is not reachable, or is "
+                "responding slowly."
+            )
 
     @abstractmethod
     def native_quil_to_executable(
@@ -55,8 +114,41 @@ class AbstractCompiler(ABC):
         :return: An (opaque) binary executable
         """
 
+    def set_timeout(self, timeout: float) -> None:
+        """
+        Set timeout for each individual stage of compilation.
+
+        :param timeout: Timeout value for each compilation stage, in seconds. If the stage does not
+            complete within this threshold, an exception is raised.
+        """
+        if timeout < 0:
+            raise ValueError(f"Cannot set timeout to negative value {timeout}")
+
+        self._timeout = timeout
+        self._quilc_client.rpc_timeout = timeout
+
+    @_record_call
     def reset(self) -> None:
-        pass
+        """
+        Reset the state of the this compiler client.
+        """
+        self._quilc_client.close()
+        self._quilc_client = rpcq.Client(self._api_client.quilc_url, timeout=self._timeout)
+
+
+def _check_quilc_version(version_dict: Dict[str, str]) -> None:
+    """
+    Verify that there is no mismatch between pyquil and quilc versions.
+
+    :param version_dict: Dictionary containing version information about quilc.
+    """
+    quilc_version = version_dict["quilc"]
+    major, minor, patch = map(int, quilc_version.split("."))
+    if major == 1 and minor < 8:
+        raise QuilcVersionMismatch(
+            "Must use quilc >= 1.8.0 with pyquil >= 2.8.0, but you "
+            f"have quilc {quilc_version} and pyquil {__version__}"
+        )
 
 
 class AbstractBenchmarker(ABC):

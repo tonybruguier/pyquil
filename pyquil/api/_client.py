@@ -99,20 +99,6 @@ class Client:
         """
         return self._config.profile.applications.pyquil.quilc_url
 
-    @property
-    def qpu_compiler_url(self) -> str:
-        """
-        QPU compiler URL from client configuration.
-        """
-        return self._config.profile.applications.pyquil.qpu_compiler_url
-
-    @property
-    def qpu_url(self) -> str:
-        """
-        QPU URL from client configuration.
-        """
-        return self._config.profile.applications.pyquil.qpu_url
-
     def qvm_version(self) -> str:
         """
         Get QVM version string.

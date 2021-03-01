@@ -14,6 +14,8 @@
 #    limitations under the License.
 ##############################################################################
 
+# TODO(andrew): move these functions into better locations and delete this file
+
 from typing import Dict, Iterable, List, Optional, Sequence, Tuple, Union
 
 from pyquil.quil import Program

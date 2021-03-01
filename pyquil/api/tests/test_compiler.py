@@ -7,14 +7,16 @@ from rpcq.core_messages import QuiltBinaryExecutableResponse
 from pyquil import Program
 from pyquil.quilatom import FormalArgument
 from pyquil.quilbase import DefCalibration
-from pyquil.api._base_connection import get_session
 from pyquil.api._compiler import QPUCompiler
-from pyquil.api._config import PyquilConfig
 from pyquil.api._errors import UserMessageError
 from pyquil.device import Device
 from pyquil.gates import RX, MEASURE, RZ
 from pyquil.tests.utils import api_fixture_path
 
+
+# TODO(andrew): tests
+# QPUCompiler
+# QVMCompiler
 
 def simple_program():
     program = Program()
@@ -48,11 +50,6 @@ TEST_CONFIG_PATHS = {
 def test_http_compilation(compiler):
     device_name = "test_device"
     mock_url = "http://mock-qpu-compiler"
-
-    config = PyquilConfig(TEST_CONFIG_PATHS)
-    session = get_session(config=config)
-    mock_adapter = requests_mock.Adapter()
-    session.mount("http://", mock_adapter)
 
     headers = {
         # access token from ./data/user_auth_token_valid.json.
