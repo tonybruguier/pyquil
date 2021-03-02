@@ -7,6 +7,7 @@ from pyquil import Program
 from pyquil.api import QVM, Client
 from pyquil.api._compiler import _extract_program_from_pyquil_executable_response
 from pyquil.api._errors import QVMError
+from pyquil.api._qvm import validate_noise_probabilities, validate_qubit_list, prepare_register_list
 from pyquil.gates import MEASURE, X, CNOT, H
 from pyquil.quilbase import Declare, MemoryReference
 
@@ -141,3 +142,28 @@ def test_qvm_version(client: Client):
         return True
 
     assert is_a_version_string(version)
+
+
+def test_validate_noise_probabilities():
+    with pytest.raises(TypeError):
+        validate_noise_probabilities(1)
+    with pytest.raises(TypeError):
+        validate_noise_probabilities(["a", "b", "c"])
+    with pytest.raises(ValueError):
+        validate_noise_probabilities([0.0, 0.0, 0.0, 0.0])
+    with pytest.raises(ValueError):
+        validate_noise_probabilities([0.5, 0.5, 0.5])
+    with pytest.raises(ValueError):
+        validate_noise_probabilities([-0.5, -0.5, -0.5])
+
+
+def test_validate_qubit_list():
+    with pytest.raises(TypeError):
+        validate_qubit_list([-1, 1])
+    with pytest.raises(TypeError):
+        validate_qubit_list(["a", 0], 1)
+
+
+def test_prepare_register_list():
+    with pytest.raises(TypeError):
+        prepare_register_list({"ro": [-1, 1]})

@@ -14,15 +14,16 @@
 #    limitations under the License.
 ##############################################################################
 import warnings
-from typing import Dict, List, Union, Optional, Any, Set, cast, Iterable
+from typing import Dict, List, Union, Optional, Any, Set, cast, Iterable, Sequence
 from warnings import warn
 
 import numpy as np
 from qcs_api_client.client import QCSClientConfiguration
 
+from pyquil import Program
 from pyquil.api import Client
-from pyquil.api._base_connection import expectation_payload, wavefunction_payload
 from pyquil.api._error_reporting import _record_call
+from pyquil.api._qvm import validate_qubit_list, TYPE_MULTISHOT_MEASURE, TYPE_WAVEFUNCTION, TYPE_EXPECTATION
 from pyquil.gates import MOVE
 from pyquil.paulis import PauliSum, PauliTerm
 from pyquil.quil import Program, percolate_declares
@@ -231,3 +232,70 @@ class WavefunctionSimulator:
         p += quil_program
 
         return percolate_declares(p)
+
+
+def run_and_measure_payload(
+    quil_program: Program, qubits: Sequence[int], trials: int, random_seed: int
+) -> Dict[str, object]:
+    """REST payload for :py:func:`ForestConnection._run_and_measure`"""
+    if not quil_program:
+        raise ValueError(
+            "You have attempted to run an empty program."
+            " Please provide gates or measure instructions to your program."
+        )
+
+    if not isinstance(quil_program, Program):
+        raise TypeError("quil_program must be a Quil program object")
+    qubits = validate_qubit_list(qubits)
+    if not isinstance(trials, int):
+        raise TypeError("trials must be an integer")
+
+    payload = {
+        "type": TYPE_MULTISHOT_MEASURE,
+        "qubits": list(qubits),
+        "trials": trials,
+        "compiled-quil": quil_program.out(calibrations=False),
+    }
+
+    if random_seed is not None:
+        payload["rng-seed"] = random_seed
+
+    return payload
+
+
+def wavefunction_payload(quil_program: Program, random_seed: int) -> Dict[str, object]:
+    """REST payload for :py:func:`ForestConnection._wavefunction`"""
+    if not isinstance(quil_program, Program):
+        raise TypeError("quil_program must be a Quil program object")
+
+    payload: Dict[str, object] = {
+        "type": TYPE_WAVEFUNCTION,
+        "compiled-quil": quil_program.out(calibrations=False),
+    }
+
+    if random_seed is not None:
+        payload["rng-seed"] = random_seed
+
+    return payload
+
+
+def expectation_payload(
+    prep_prog: Program, operator_programs: Optional[Iterable[Program]], random_seed: int
+) -> Dict[str, object]:
+    """REST payload for :py:func:`ForestConnection._expectation`"""
+    if operator_programs is None:
+        operator_programs = [Program()]
+
+    if not isinstance(prep_prog, Program):
+        raise TypeError("prep_prog variable must be a Quil program object")
+
+    payload: Dict[str, object] = {
+        "type": TYPE_EXPECTATION,
+        "state-preparation": prep_prog.out(calibrations=False),
+        "operators": [x.out(calibrations=False) for x in operator_programs],
+    }
+
+    if random_seed is not None:
+        payload["rng-seed"] = random_seed
+
+    return payload

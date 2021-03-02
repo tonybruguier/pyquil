@@ -37,7 +37,7 @@ class BenchmarkConnection(AbstractBenchmarker):
     """
 
     @_record_call
-    def __init__(self, endpoint: str, timeout: Optional[float] = None):
+    def __init__(self, *, endpoint: str, timeout: Optional[float] = None):
         """
         Client to communicate with the benchmarking data endpoint.
 

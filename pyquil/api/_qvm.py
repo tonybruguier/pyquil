@@ -14,20 +14,13 @@
 #    limitations under the License.
 ##############################################################################
 import warnings
-import numpy as np
-from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Union, cast
+from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Union, cast, Tuple
 
+import numpy as np
 from requests.exceptions import ConnectionError
 from rpcq.messages import PyQuilExecutableResponse
 
 from pyquil.api import Client
-from pyquil.api._base_connection import (
-    validate_qubit_list,
-    validate_noise_probabilities,
-    TYPE_MULTISHOT_MEASURE,
-    TYPE_WAVEFUNCTION,
-    TYPE_EXPECTATION, qvm_run_payload,
-)
 from pyquil.api._compiler import QVMCompiler, _extract_program_from_pyquil_executable_response
 from pyquil.api._error_reporting import _record_call
 from pyquil.api._qam import QAM
@@ -591,3 +584,112 @@ http://pyquil.readthedocs.io/en/latest/noise_models.html#support-for-noisy-gates
         super().reset()
         # forest_connection = ForestConnection()
         # self.connection = forest_connection
+
+
+TYPE_EXPECTATION = "expectation"
+TYPE_MULTISHOT = "multishot"
+TYPE_MULTISHOT_MEASURE = "multishot-measure"
+TYPE_WAVEFUNCTION = "wavefunction"
+
+
+def validate_noise_probabilities(noise_parameter: Optional[List[float]]) -> None:
+    """
+    Is noise_parameter a valid specification of noise probabilities for depolarizing noise?
+
+    :param list noise_parameter: List of noise parameter values to be validated.
+    """
+    if not noise_parameter:
+        return
+    if not isinstance(noise_parameter, list):
+        raise TypeError("noise_parameter must be a list")
+    if any([not isinstance(value, float) for value in noise_parameter]):
+        raise TypeError("noise_parameter values should all be floats")
+    if len(noise_parameter) != 3:
+        raise ValueError("noise_parameter lists must be of length 3")
+    if sum(noise_parameter) > 1 or sum(noise_parameter) < 0:
+        raise ValueError("sum of entries in noise_parameter must be between 0 and 1 (inclusive)")
+    if any([value < 0 for value in noise_parameter]):
+        raise ValueError("noise_parameter values should all be non-negative")
+
+
+def validate_qubit_list(qubit_list: Sequence[int]) -> Sequence[int]:
+    """
+    Check the validity of qubits for the payload.
+
+    :param qubit_list: List of qubits to be validated.
+    """
+    if not isinstance(qubit_list, Sequence):
+        raise TypeError("'qubit_list' must be of type 'Sequence'")
+    if any(not isinstance(i, int) or i < 0 for i in qubit_list):
+        raise TypeError("'qubit_list' must contain positive integer values")
+    return qubit_list
+
+
+def prepare_register_list(
+    register_dict: Dict[str, Union[bool, Sequence[int]]]
+) -> Dict[str, Union[bool, Sequence[int]]]:
+    """
+    Canonicalize classical addresses for the payload and ready MemoryReference instances
+    for serialization.
+
+    This function will cast keys that are iterables of int-likes to a list of Python
+    ints. This is to support specifying the register offsets as ``range()`` or numpy
+    arrays. This mutates ``register_dict``.
+
+    :param register_dict: The classical memory to retrieve. Specified as a dictionary:
+        the keys are the names of memory regions, and the values are either (1) a list of
+        integers for reading out specific entries in that memory region, or (2) True, for
+        reading out the entire memory region.
+    """
+    if not isinstance(register_dict, dict):
+        raise TypeError("register_dict must be a dict but got " + repr(register_dict))
+
+    for k, v in register_dict.items():
+        if isinstance(v, bool):
+            assert v  # If boolean v must be True
+            continue
+
+        indices = [int(x) for x in v]  # support ranges, numpy, ...
+
+        if not all(x >= 0 for x in indices):
+            raise TypeError("Negative indices into classical arrays are not allowed.")
+        register_dict[k] = indices
+
+    return register_dict
+
+
+def qvm_run_payload(
+    quil_program: Program,
+    classical_addresses: Dict[str, Union[bool, Sequence[int]]],
+    trials: int,
+    measurement_noise: Optional[Tuple[float, float, float]],
+    gate_noise: Optional[Tuple[float, float, float]],
+    random_seed: Optional[int],
+) -> Dict[str, object]:
+    """REST payload for QVM execution`"""
+    if not quil_program:
+        raise ValueError(
+            "You have attempted to run an empty program."
+            " Please provide gates or measure instructions to your program."
+        )
+    if not isinstance(quil_program, Program):
+        raise TypeError("quil_program must be a Quil program object")
+    classical_addresses = prepare_register_list(classical_addresses)
+    if not isinstance(trials, int):
+        raise TypeError("trials must be an integer")
+
+    payload = {
+        "type": TYPE_MULTISHOT,
+        "addresses": classical_addresses,
+        "trials": trials,
+        "compiled-quil": quil_program.out(calibrations=False),
+    }
+
+    if measurement_noise is not None:
+        payload["measurement-noise"] = measurement_noise
+    if gate_noise is not None:
+        payload["gate-noise"] = gate_noise
+    if random_seed is not None:
+        payload["rng-seed"] = random_seed
+
+    return payload

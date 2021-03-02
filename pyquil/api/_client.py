@@ -27,7 +27,7 @@ class Client:
     _config: QCSClientConfiguration
     _engagement: Optional[EngagementWithCredentials] = None
 
-    def __init__(self, http: Optional[httpx.Client] = None, configuration: Optional[QCSClientConfiguration] = None):
+    def __init__(self, *, http: Optional[httpx.Client] = None, configuration: Optional[QCSClientConfiguration] = None):
         """
         Instantiate a client.
 

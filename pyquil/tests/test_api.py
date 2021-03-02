@@ -26,17 +26,12 @@ from unittest.mock import patch
 import networkx as nx
 import numpy as np
 import pytest
-import requests_mock
+from _pytest.monkeypatch import MonkeyPatch
 from pytest_httpx import HTTPXMock
 from rpcq import Server
 from rpcq.messages import QuiltBinaryExecutableRequest, QuiltBinaryExecutableResponse
 
 from pyquil.api import QVMConnection, QPUCompiler, get_qc, QVMCompiler
-from pyquil.api._base_connection import (
-    validate_noise_probabilities,
-    validate_qubit_list,
-    prepare_register_list,
-)
 from pyquil.device import ISA, NxDevice
 from pyquil.gates import CNOT, H, MEASURE, PHASE, Z, RZ, RX, CZ
 from pyquil.paulis import PauliTerm
@@ -146,12 +141,6 @@ def test_sync_run_and_measure(qvm):
         qvm.run_and_measure(EMPTY_PROGRAM, [0])
 
 
-WAVEFUNCTION_BINARY = (
-    b"\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"
-    b"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00?\xe6\xa0\x9ef"
-    b"\x7f;\xcc\x00\x00\x00\x00\x00\x00\x00\x00\xbf\xe6\xa0\x9ef\x7f;\xcc\x00"
-    b"\x00\x00\x00\x00\x00\x00\x00"
-)
 WAVEFUNCTION_PROGRAM = Program(
     Declare("ro", "BIT"), H(0), CNOT(0, 1), MEASURE(0, MemoryReference("ro")), H(0)
 )
@@ -229,85 +218,6 @@ def test_sync_wavefunction(qvm):
     result = qvm.wavefunction(WAVEFUNCTION_PROGRAM)
     wf_expected = np.array([0.0 + 0.0j, 0.0 + 0.0j, 0.70710678 + 0.0j, -0.70710678 + 0.0j])
     np.testing.assert_allclose(result.amplitudes, wf_expected)
-
-
-def test_validate_noise_probabilities():
-    with pytest.raises(TypeError):
-        validate_noise_probabilities(1)
-    with pytest.raises(TypeError):
-        validate_noise_probabilities(["a", "b", "c"])
-    with pytest.raises(ValueError):
-        validate_noise_probabilities([0.0, 0.0, 0.0, 0.0])
-    with pytest.raises(ValueError):
-        validate_noise_probabilities([0.5, 0.5, 0.5])
-    with pytest.raises(ValueError):
-        validate_noise_probabilities([-0.5, -0.5, -0.5])
-
-
-def test_validate_qubit_list():
-    with pytest.raises(TypeError):
-        validate_qubit_list([-1, 1])
-    with pytest.raises(TypeError):
-        validate_qubit_list(["a", 0], 1)
-
-
-def test_prepare_register_list():
-    with pytest.raises(TypeError):
-        prepare_register_list({"ro": [-1, 1]})
-
-
-# ---------------------
-# compiler-server tests
-# ---------------------
-
-
-def test_get_qc_returns_remote_qvm_compiler():
-    # TODO(andrew): update this test wrt env var
-    with patch.dict("os.environ", {"COMPILER_URL": "tcp://192.168.0.0:5550"}):
-        qc = get_qc("9q-square-qvm")
-        assert isinstance(qc.compiler, QVMCompiler)
-
-
-mock_qpu_compiler_server = Server()
-
-
-@mock_qpu_compiler_server.rpc_handler
-def native_quilt_to_binary(payload: QuiltBinaryExecutableRequest) -> QuiltBinaryExecutableResponse:
-    assert Program(payload.quilt).out() == COMPILED_BELL_STATE.out()
-    time.sleep(0.1)
-    return QuiltBinaryExecutableResponse(program=COMPILED_BYTES_ARRAY, debug={})
-
-
-@mock_qpu_compiler_server.rpc_handler
-def get_version_info() -> str:
-    return "1.8.1"
-
-
-@pytest.fixture
-def m_endpoints():
-    return "tcp://127.0.0.1:5550", "tcp://*:5550"
-
-
-def run_mock(_, endpoint):
-    # Need a new event loop for a new process
-    mock_qpu_compiler_server.run(endpoint, loop=asyncio.new_event_loop())
-
-
-@pytest.fixture
-def server(request, m_endpoints):
-    proc = Process(target=run_mock, args=m_endpoints)
-    proc.start()
-    yield proc
-    os.kill(proc.pid, signal.SIGINT)
-
-
-@pytest.fixture
-def mock_qpu_compiler(request, m_endpoints, compiler: QVMCompiler):
-    return QPUCompiler(
-        quilc_endpoint=compiler.client.endpoint,
-        qpu_compiler_endpoint=m_endpoints[0],
-        device=NxDevice(nx.Graph([(0, 1)])),
-    )
 
 
 def test_quil_to_native_quil(compiler):
