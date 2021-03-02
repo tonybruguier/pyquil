@@ -25,6 +25,7 @@ from contextlib import contextmanager
 
 import networkx as nx
 import numpy as np
+from qcs_api_client.models import TranslateNativeQuilToEncryptedBinaryResponse
 from qcs_api_client.client import build_sync_client
 from rpcq.messages import QuiltBinaryExecutableResponse, PyQuilExecutableResponse
 
@@ -48,9 +49,6 @@ from pyquil.paulis import PauliTerm
 from pyquil.pyqvm import PyQVM
 from pyquil.quil import Program, validate_supported_quil
 from pyquil.quilatom import qubit_index
-
-
-ExecutableDesignator = Union[QuiltBinaryExecutableResponse, PyQuilExecutableResponse]
 
 
 class QuantumComputer:
@@ -119,7 +117,7 @@ class QuantumComputer:
     @_record_call
     def run(
         self,
-        executable: ExecutableDesignator,
+        executable: TranslateNativeQuilToEncryptedBinaryResponse,
         memory_map: Optional[Mapping[str, Sequence[Union[int, float]]]] = None,
     ) -> np.ndarray:
         """
@@ -445,7 +443,7 @@ class QuantumComputer:
         protoquil_positional: Optional[bool] = None,
         *,
         protoquil: Optional[bool] = None,
-    ) -> ExecutableDesignator:
+    ) -> TranslateNativeQuilToEncryptedBinaryResponse:
         """
         A high-level interface to program compilation.
 

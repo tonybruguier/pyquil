@@ -20,6 +20,7 @@ from collections import defaultdict
 from typing import Dict, Sequence, Union, Optional
 
 import numpy as np
+from qcs_api_client.models import TranslateNativeQuilToEncryptedBinaryResponse
 from rpcq.messages import QuiltBinaryExecutableResponse, ParameterAref, PyQuilExecutableResponse
 
 from pyquil.api._error_reporting import _record_call
@@ -41,6 +42,9 @@ class QAM(ABC):
     pretend to be a QPI-compliant quantum computer.
     """
 
+    status: str
+    _variables_shim: Dict[ParameterAref, Union[int, float]]
+    _executable: TranslateNativeQuilToEncryptedBinaryResponse
     _memory_results: Dict[str, np.ndarray]
 
     @_record_call
@@ -49,7 +53,7 @@ class QAM(ABC):
 
     @_record_call
     def load(
-        self, executable: Union[QuiltBinaryExecutableResponse, PyQuilExecutableResponse]
+        self, executable: TranslateNativeQuilToEncryptedBinaryResponse
     ) -> "QAM":
         """
         Initialize a QAM into a fresh state.
@@ -61,10 +65,8 @@ class QAM(ABC):
             warnings.warn("Overwriting previously loaded executable.")
         assert self.status in ["connected", "done", "loaded"]
 
-        self._variables_shim: Dict[ParameterAref, Union[int, float]] = {}
-        self._executable: Optional[
-            Union[QuiltBinaryExecutableResponse, PyQuilExecutableResponse]
-        ] = executable
+        self._variables_shim = {}
+        self._executable = executable
         self._memory_results = defaultdict(lambda: None)
         self.status = "loaded"
         return self

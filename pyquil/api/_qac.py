@@ -50,13 +50,13 @@ class AbstractCompiler(ABC):
             *,
             device: AbstractDevice,
             client: Optional[api.Client],
-            timeout: float = 10
+            timeout: float
     ) -> None:
         self._target_device = TargetDevice(isa=device.get_isa().to_dict(), specs={})
         self._api_client = client or api.Client()
 
         if not self._api_client.quilc_url.startswith("tcp://"):
-            raise ValueError(f"Expected compiler URL '{self._api_client.quilc_url}' to use TCP protocol")
+            raise ValueError(f"Expected compiler URL '{self._api_client.quilc_url}' to start with 'tcp://'")
 
         self._quilc_client = rpcq.Client(self._api_client.quilc_url, timeout=timeout)
         self.set_timeout(timeout)

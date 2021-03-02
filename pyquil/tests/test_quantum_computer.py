@@ -135,16 +135,16 @@ def test_construct_strength_two_orthogonal_array():
     assert np.allclose(_construct_strength_two_orthogonal_array(3), answer)
 
 
-def test_measure_bitstrings(client: Client):
+def test_measure_bitstrings(client: Client, dummy_compiler: DummyCompiler):
     device = NxDevice(nx.complete_graph(2))
     qc_pyqvm = QuantumComputer(
-        name="testy!", qam=PyQVM(n_qubits=2), device=device, compiler=DummyCompiler()
+        name="testy!", qam=PyQVM(n_qubits=2), device=device, compiler=dummy_compiler
     )
     qc_forest = QuantumComputer(
         name="testy!",
         qam=QVM(client=client, gate_noise=[0.00] * 3),
         device=device,
-        compiler=DummyCompiler(),
+        compiler=dummy_compiler,
     )
     prog = Program(I(0), I(1))
     meas_qubits = [0, 1]
@@ -183,13 +183,13 @@ def test_check_min_num_trials_for_symmetrized_readout():
         _check_min_num_trials_for_symmetrized_readout(num_qubits=2, trials=-2, symm_type=4)
 
 
-def test_device_stuff():
+def test_device_stuff(dummy_compiler: DummyCompiler):
     topo = nx.from_edgelist([(0, 4), (0, 99)])
     qc = QuantumComputer(
         name="testy!",
         qam=None,  # not necessary for this test
         device=NxDevice(topo),
-        compiler=DummyCompiler(),
+        compiler=dummy_compiler
     )
     assert nx.is_isomorphic(qc.qubit_topology(), topo)
 
@@ -201,13 +201,13 @@ def test_device_stuff():
 # We sometimes narrowly miss the np.mean(parity) < 0.15 assertion, below. Alternatively, that upper
 # bound could be relaxed.
 @pytest.mark.flaky(reruns=1)
-def test_run(client: Client):
+def test_run(client: Client, dummy_compiler: DummyCompiler):
     device = NxDevice(nx.complete_graph(3))
     qc = QuantumComputer(
         name="testy!",
         qam=QVM(client=client, gate_noise=[0.01] * 3),
         device=device,
-        compiler=DummyCompiler(),
+        compiler=dummy_compiler,
     )
     bitstrings = qc.run(
         Program(
@@ -226,10 +226,10 @@ def test_run(client: Client):
     assert 0 < np.mean(parity) < 0.15
 
 
-def test_run_pyqvm_noiseless():
+def test_run_pyqvm_noiseless(dummy_compiler: DummyCompiler):
     device = NxDevice(nx.complete_graph(3))
     qc = QuantumComputer(
-        name="testy!", qam=PyQVM(n_qubits=3), device=device, compiler=DummyCompiler()
+        name="testy!", qam=PyQVM(n_qubits=3), device=device, compiler=dummy_compiler
     )
     prog = Program(H(0), CNOT(0, 1), CNOT(1, 2))
     ro = prog.declare("ro", "BIT", 3)
@@ -242,13 +242,13 @@ def test_run_pyqvm_noiseless():
     assert np.mean(parity) == 0
 
 
-def test_run_pyqvm_noisy():
+def test_run_pyqvm_noisy(dummy_compiler: DummyCompiler):
     device = NxDevice(nx.complete_graph(3))
     qc = QuantumComputer(
         name="testy!",
         qam=PyQVM(n_qubits=3, post_gate_noise_probabilities={"relaxation": 0.01}),
         device=device,
-        compiler=DummyCompiler(),
+        compiler=dummy_compiler,
     )
     prog = Program(H(0), CNOT(0, 1), CNOT(1, 2))
     ro = prog.declare("ro", "BIT", 3)
@@ -261,14 +261,14 @@ def test_run_pyqvm_noisy():
     assert 0 < np.mean(parity) < 0.15
 
 
-def test_readout_symmetrization(client: Client):
+def test_readout_symmetrization(client: Client, dummy_compiler: DummyCompiler):
     device = NxDevice(nx.complete_graph(3))
     noise_model = decoherence_noise_with_asymmetric_ro(gates=gates_in_isa(device.get_isa()))
     qc = QuantumComputer(
         name="testy!",
         qam=QVM(client=client, noise_model=noise_model),
         device=device,
-        compiler=DummyCompiler(),
+        compiler=dummy_compiler,
     )
 
     prog = Program(
@@ -441,9 +441,9 @@ def test_qc_noisy():
     assert isinstance(qc, QuantumComputer)
 
 
-def test_qc_compile():
+def test_qc_compile(dummy_compiler: DummyCompiler):
     qc = get_qc("5q", as_qvm=True, noisy=True)
-    qc.compiler = DummyCompiler()
+    qc.compiler = dummy_compiler
     prog = Program()
     prog += H(0)
     exe = qc.compile(prog)
@@ -510,10 +510,10 @@ def test_qvm_compile_pickiness(client: Client):
     qc.run(nq)
 
 
-def test_run_with_parameters(client: Client):
+def test_run_with_parameters(client: Client, dummy_compiler: DummyCompiler):
     device = NxDevice(nx.complete_graph(3))
     qc = QuantumComputer(
-        name="testy!", qam=QVM(client=client), device=device, compiler=DummyCompiler()
+        name="testy!", qam=QVM(client=client), device=device, compiler=dummy_compiler
     )
     bitstrings = qc.run(
         executable=Program(
@@ -529,10 +529,10 @@ def test_run_with_parameters(client: Client):
     assert all([bit == 1 for bit in bitstrings])
 
 
-def test_reset(client: Client):
+def test_reset(client: Client, dummy_compiler: DummyCompiler):
     device = NxDevice(nx.complete_graph(3))
     qc = QuantumComputer(
-        name="testy!", qam=QVM(client=client), device=device, compiler=DummyCompiler()
+        name="testy!", qam=QVM(client=client), device=device, compiler=dummy_compiler
     )
     p = Program(
         Declare(name="theta", memory_type="REAL"),

@@ -11,13 +11,14 @@ from pyquil.api import (
     local_forest_runtime,
     Client,
 )
-from pyquil.api._compiler import QuilcNotRunning, QuilcVersionMismatch
 from pyquil.api._errors import UnknownApiError
+from pyquil.api._qac import QuilcNotRunning, QuilcVersionMismatch
 from pyquil.api._qvm import QVMNotRunning, QVMVersionMismatch
 from pyquil.device import Device
 from pyquil.gates import I
 from pyquil.paulis import sX
 from pyquil.quil import Program
+from pyquil.tests.utils import DummyCompiler
 
 
 @pytest.fixture
@@ -135,17 +136,20 @@ def qvm(client: Client):
 
 
 @pytest.fixture()
-def compiler(test_device):
+def compiler(test_device, client: Client):
     try:
-        # config = PyquilConfig()
-        quilc_url = "tcp://127.0.0.1:5555"  # TODO(andrew): use configured value
-        compiler = QVMCompiler(endpoint=quilc_url, device=test_device, timeout=1)
+        compiler = QVMCompiler(device=test_device, client=client, timeout=1)
         compiler.quil_to_native_quil(Program(I(0)))
         return compiler
     except (RequestException, QuilcNotRunning, UnknownApiError, TimeoutError) as e:
         return pytest.skip("This test requires compiler connection: {}".format(e))
     except QuilcVersionMismatch as e:
         return pytest.skip("This test requires a different version of quilc: {}".format(e))
+
+
+@pytest.fixture()
+def dummy_compiler(test_device: Device, client: Client):
+    return DummyCompiler(test_device, client)
 
 
 @pytest.fixture(scope="session")

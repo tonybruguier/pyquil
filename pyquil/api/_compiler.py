@@ -256,7 +256,7 @@ class QVMCompiler(AbstractCompiler):
             self,
             *,
             device: AbstractDevice,
-            client: Optional[api.Client],
+            client: Optional[api.Client] = None,
             timeout: float = 10
     ) -> None:
         """
