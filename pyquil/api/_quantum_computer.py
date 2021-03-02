@@ -659,9 +659,7 @@ def _get_qvm_qc(
             requires_executable=requires_executable,
         ),
         device=device,
-        compiler=QVMCompiler(
-            device=device, endpoint="tcp://127.0.0.1:5555", timeout=compiler_timeout  # TODO(andrew): use configured value
-        ),
+        compiler=QVMCompiler(device=device, client=client, timeout=compiler_timeout),
     )
 
 
@@ -945,10 +943,8 @@ def get_qc(
         qpu = QPU(processor_id=device.name, client=client)
 
         compiler = QPUCompiler(
-            quilc_endpoint=None,
-            qpu_compiler_endpoint=None,
+            processor_id=prefix,
             device=device,
-            name=prefix,
             client=client,
             timeout=compiler_timeout,
         )

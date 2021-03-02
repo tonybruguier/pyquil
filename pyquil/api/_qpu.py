@@ -19,6 +19,7 @@ from collections import defaultdict
 from typing import Any, Dict, List, Optional, Tuple, Union, cast
 
 import numpy as np
+from qcs_api_client.models import TranslateNativeQuilToEncryptedBinaryResponse
 from rpcq.messages import QuiltBinaryExecutableResponse, QPURequest, ParameterAref, ParameterSpec
 
 from pyquil.api import Client
@@ -256,8 +257,8 @@ class QPU(QAM):
                 memory_reference_name = memory_ref_names[0]
                 patch_values[memory_reference_name] = [0.0] * len(recalculation_table)
 
-        assert isinstance(self._executable, QuiltBinaryExecutableResponse)
-        for name, spec in self._executable.memory_descriptors.items():
+        assert isinstance(self._executable, TranslateNativeQuilToEncryptedBinaryResponse)
+        for name, spec in self._executable.memory_descriptors.to_dict().items():
             # NOTE: right now we fake reading out measurement values into classical memory
             # hence we omit them here from the patch table.
             if any(name == mref.name for mref, _ in self._executable.ro_sources):

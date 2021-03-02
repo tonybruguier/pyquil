@@ -54,12 +54,12 @@ class AbstractCompiler(ABC):
     ) -> None:
         self._target_device = TargetDevice(isa=device.get_isa().to_dict(), specs={})
         self._api_client = client or api.Client()
-        self.set_timeout(timeout)
 
         if not self._api_client.quilc_url.startswith("tcp://"):
             raise ValueError(f"Expected compiler URL '{self._api_client.quilc_url}' to use TCP protocol")
 
         self._quilc_client = rpcq.Client(self._api_client.quilc_url, timeout=timeout)
+        self.set_timeout(timeout)
 
     def get_version_info(self) -> Dict[str, Any]:
         """
@@ -83,9 +83,7 @@ class AbstractCompiler(ABC):
         request = NativeQuilRequest(
             quil=program.out(calibrations=False), target_device=self._target_device
         )
-        response = self._quilc_client.call(
-            "quil_to_native_quil", request, protoquil=protoquil
-        ).asdict()
+        response = self._quilc_client.call("quil_to_native_quil", request, protoquil=protoquil).asdict()
         nq_program = parse_program(response["quil"])
         nq_program.native_quil_metadata = response["metadata"]
         nq_program.num_shots = program.num_shots

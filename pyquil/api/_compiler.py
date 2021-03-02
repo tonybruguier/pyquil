@@ -14,10 +14,8 @@
 #    limitations under the License.
 ##############################################################################
 import logging
-import warnings
 from typing import Dict, Any, Optional, List, Tuple
 
-import rpcq
 from qcs_api_client.models.get_quilt_calibrations_response import GetQuiltCalibrationsResponse
 from qcs_api_client.models.translate_native_quil_to_encrypted_binary_request import \
     TranslateNativeQuilToEncryptedBinaryRequest
@@ -25,15 +23,13 @@ from qcs_api_client.models.translate_native_quil_to_encrypted_binary_response im
     TranslateNativeQuilToEncryptedBinaryResponse
 from qcs_api_client.operations.sync import translate_native_quil_to_encrypted_binary, get_quilt_calibrations
 from rpcq.messages import (
-    NativeQuilRequest,
-    TargetDevice,
     PyQuilExecutableResponse,
     ParameterSpec,
 )
 
 from pyquil import api
 from pyquil.api._error_reporting import _record_call
-from pyquil.api._qac import AbstractCompiler, QuilcNotRunning
+from pyquil.api._qac import AbstractCompiler
 from pyquil.api._rewrite_arithmetic import rewrite_arithmetic
 from pyquil.device._main import AbstractDevice
 from pyquil.parser import parse_program
@@ -197,6 +193,7 @@ class QPUCompiler(AbstractCompiler):
         # TODO(andrew): timeout?
         return self._api_client.qcs_request(
             translate_native_quil_to_encrypted_binary,
+            quantum_processor_id=self.processor_id,
             json_body=request
         ).parsed
 
@@ -270,16 +267,6 @@ class QVMCompiler(AbstractCompiler):
         :param timeout: Number of seconds to wait for a response from the client.
         """
         super().__init__(device=device, client=client, timeout=timeout)
-
-    @_record_call
-    def quil_to_native_quil(self, program: Program, *, protoquil: Optional[bool] = None) -> Program:
-        self._connect()
-        request = NativeQuilRequest(quil=program.out(), target_device=self.target_device)
-        response = self.client.call("quil_to_native_quil", request, protoquil=protoquil).asdict()
-        nq_program = parse_program(response["quil"])
-        nq_program.native_quil_metadata = response["metadata"]
-        nq_program.num_shots = program.num_shots
-        return nq_program
 
     @_record_call
     def native_quil_to_executable(self, nq_program: Program) -> PyQuilExecutableResponse:
