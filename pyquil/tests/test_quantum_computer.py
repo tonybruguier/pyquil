@@ -290,10 +290,10 @@ def test_readout_symmetrization(client: Client, dummy_compiler: DummyCompiler):
 
 
 @pytest.mark.slow
-def test_run_symmetrized_readout_error():
+def test_run_symmetrized_readout_error(client: Client):
     # This test checks if the function runs for any possible input on a small number of qubits.
     # Locally this test was run on all 8 qubits, but it was slow.
-    qc = get_qc("8q-qvm")
+    qc = get_qc("8q-qvm", client=client)
     sym_type_vec = [-1, 0, 1, 2, 3]
     prog_vec = [Program(I(x) for x in range(0, 3))[0:n] for n in range(0, 4)]
     trials_vec = list(range(0, 5))
@@ -409,7 +409,7 @@ def test_parse_qc_pyqvm():
     assert not noisy
 
 
-def test_qc(qvm, compiler):
+def test_qc():
     qc = get_qc("9q-square-noisy-qvm")
     assert isinstance(qc, QuantumComputer)
     assert isinstance(qc.qam, QVM)
@@ -420,7 +420,7 @@ def test_qc(qvm, compiler):
     assert str(qc) == "9q-square-noisy-qvm"
 
 
-def test_qc_run(qvm, compiler):
+def test_qc_run():
     qc = get_qc("9q-square-noisy-qvm")
     bs = qc.run_and_measure(Program(X(0)), trials=3)
     assert len(bs) == 9
@@ -461,7 +461,7 @@ def test_qc_error():
         get_qc("5q", as_qvm=False)
 
 
-def test_run_and_measure(local_qvm_quilc):
+def test_run_and_measure():
     qc = get_qc("9q-square-qvm")
     prog = Program(I(8))
     trials = 11

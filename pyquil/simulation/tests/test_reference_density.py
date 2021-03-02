@@ -318,7 +318,7 @@ def test_multiqubit_decay_bellstate():
 
 
 @pytest.mark.slow
-def test_for_negative_probabilities():
+def test_for_negative_probabilities(dummy_compiler: DummyCompiler):
     # trivial program to do state tomography on
     prog = Program(I(0))
 
@@ -332,7 +332,7 @@ def test_for_negative_probabilities():
         name="testy!",
         qam=PyQVM(n_qubits=1, quantum_simulator_type=ReferenceDensitySimulator),
         device=device,
-        compiler=DummyCompiler(),
+        compiler=dummy_compiler,
     )
 
     # initialize with a pure state
@@ -355,7 +355,7 @@ def test_for_negative_probabilities():
         assert str(e) != "probabilities are not non-negative"
 
 
-def test_set_initial_state():
+def test_set_initial_state(dummy_compiler: DummyCompiler):
     # That is test the assigned state matrix in ReferenceDensitySimulator is persistent between
     # rounds of run.
     rho1 = np.array([[0.0, 0.0], [0.0, 1.0]])
@@ -371,7 +371,7 @@ def test_set_initial_state():
         name="testy!",
         qam=PyQVM(n_qubits=1, quantum_simulator_type=ReferenceDensitySimulator),
         device=device,
-        compiler=DummyCompiler(),
+        compiler=dummy_compiler,
     )
 
     qc_density.qam.wf_simulator.set_initial_state(rho1).reset()

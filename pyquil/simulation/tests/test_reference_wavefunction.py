@@ -921,7 +921,7 @@ def include_measures(request):
     return request.param
 
 
-def test_vs_lisp_qvm(qvm, n_qubits, prog_length):
+def test_vs_lisp_qvm(n_qubits, prog_length):
     for _ in range(10):
         prog = _generate_random_program(n_qubits=n_qubits, length=prog_length)
         lisp_wf = WavefunctionSimulator()

@@ -33,7 +33,7 @@ from pyquil.wavefunction import Wavefunction
 class WavefunctionSimulator:
     @_record_call
     def __init__(
-        self, client: Optional[Client], random_seed: Optional[int] = None
+        self, *, client: Optional[Client] = None, random_seed: Optional[int] = None
     ) -> None:
         """
         A simulator that propagates a wavefunction representation of a quantum state.
