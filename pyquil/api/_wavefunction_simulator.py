@@ -199,10 +199,9 @@ class WavefunctionSimulator:
         if memory_map is not None:
             quil_program = self.augment_program_with_memory_values(quil_program, memory_map)
 
-        # TODO(andrew): refactor. is this tested?
-        return self.connection._run_and_measure(
-            quil_program=quil_program, qubits=qubits, trials=trials, random_seed=self.random_seed
-        )
+        payload = run_and_measure_payload(quil_program, qubits, trials, self.random_seed)
+        response = self.client.post_json(self.client.qvm_url, payload)
+        return np.asarray(response.json())
 
     @staticmethod
     def augment_program_with_memory_values(
