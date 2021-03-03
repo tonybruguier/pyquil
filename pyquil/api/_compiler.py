@@ -29,7 +29,7 @@ from rpcq.messages import (
     ParameterSpec,
 )
 
-from pyquil import api
+from pyquil.api import Client
 from pyquil.api._error_reporting import _record_call
 from pyquil.api._qac import AbstractCompiler, QuantumExecutable
 from pyquil.api._rewrite_arithmetic import rewrite_arithmetic
@@ -168,7 +168,7 @@ class QPUCompiler(AbstractCompiler):
         *,
         processor_id: str,
         device: AbstractDevice,
-        client: Optional[api.Client] = None,
+        client: Optional[Client] = None,
         timeout: float = 10,
     ) -> None:
         """
@@ -192,7 +192,7 @@ class QPUCompiler(AbstractCompiler):
         )
 
         # TODO(andrew): timeout?
-        return self._api_client.qcs_request(
+        return self._client.qcs_request(
             translate_native_quil_to_encrypted_binary,
             quantum_processor_id=self.processor_id,
             json_body=request,
@@ -213,7 +213,7 @@ class QPUCompiler(AbstractCompiler):
         #     response.ro_sources = _collect_classical_memory_write_locations(nq_program)
 
     def _get_calibration_program(self) -> Program:
-        response: GetQuiltCalibrationsResponse = self._api_client.qcs_request(
+        response: GetQuiltCalibrationsResponse = self._client.qcs_request(
             get_quilt_calibrations, quantum_processor_id=self.processor_id
         ).parsed
         return parse_program(response.quilt)
@@ -245,7 +245,6 @@ class QPUCompiler(AbstractCompiler):
         """
         super().reset()
         self._calibration_program = None
-        # TODO(andrew): reset api client?
 
 
 class QVMCompiler(AbstractCompiler):
@@ -255,7 +254,7 @@ class QVMCompiler(AbstractCompiler):
 
     @_record_call
     def __init__(
-        self, *, device: AbstractDevice, client: Optional[api.Client] = None, timeout: float = 10
+        self, *, device: AbstractDevice, client: Optional[Client] = None, timeout: float = 10
     ) -> None:
         """
         Client to communicate with compiler.

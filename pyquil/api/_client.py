@@ -9,7 +9,7 @@ import rpcq
 from dateutil.parser import parse as parsedate
 from dateutil.tz import tzutc
 from qcs_api_client.client import QCSClientConfiguration, build_sync_client
-from qcs_api_client.models import EngagementWithCredentials, CreateEngagementRequest
+from qcs_api_client.models import EngagementWithCredentials, CreateEngagementRequest, EngagementCredentials
 from qcs_api_client.operations.sync import create_engagement
 from qcs_api_client.types import Response
 
@@ -23,7 +23,6 @@ class Client:
     """
 
     _http: Optional[httpx.Client]
-    _rpcq: Optional[rpcq.Client] = None
     _config: QCSClientConfiguration
     _engagement: Optional[EngagementWithCredentials] = None
 
@@ -70,7 +69,31 @@ class Client:
         with self._http_client() as http:
             return request_fn(client=http, **kwargs)
 
-    def rpcq_request(
+    def compiler_rpcq_request(
+            self,
+            method_name: str,
+            *args: Any,
+            timeout: Optional[float] = None,
+            **kwargs
+    ) -> Any:
+        """
+        Execute a remote function against the Quil compiler.
+
+        :param method_name: Method name.
+        :param args: Arguments that will be passed to the remote function.
+        :param timeout: Optional time limit for request, in seconds.
+        :param kwargs: Keyword arguments that will be passed to the remote function.
+        :return: Result from remote function.
+        """
+        return self._rpcq_request(
+            self.quilc_url,
+            method_name,
+            *args,
+            timeout=timeout,
+            **kwargs,
+        )
+
+    def processor_rpcq_request(
         self,
         processor_id: str,
         method_name: str,
@@ -79,23 +102,46 @@ class Client:
         **kwargs,
     ) -> Any:
         """
-        Execute a remote function against current engagement endpoint. If there is no current engagement, or if it is
+        Execute a remote function against a processor endpoint. If there is no current engagement, or if it is
         invalid, a new engagement will be requested for the given processor.
 
         :param processor_id: Processor to engage.
         :param method_name: Method name.
-        :param args: Args that will be passed to the remote function.
-        :param float timeout: Optional time limit for request, in seconds.
-        :param kwargs: Keyword args that will be passed to the remote function.
+        :param args: Arguments that will be passed to the remote function.
+        :param timeout: Optional time limit for request, in seconds.
+        :param kwargs: Keyword arguments that will be passed to the remote function.
         :return: Result from remote function.
         """
-        return self._rpcq_client(processor_id).call(method_name, *args, timeout, **kwargs)
+        if not _engagement_valid(processor_id, self._engagement):
+            self._engagement = self._create_engagement(processor_id)
+
+        return self.rpcq_request(
+            self._engagement.address,
+            method_name,
+            *args,
+            timeout=timeout,
+            auth_config=_to_auth_config(self._engagement.credentials),
+            **kwargs,
+        )
+
+    def _rpcq_request(
+            self,
+            endpoint: str,
+            method_name: str,
+            *args: Any,
+            timeout: Optional[float] = None, **kwargs
+    ) -> Any:
+        # TODO(andrew): should this use a try-finally?
+        client = rpcq.Client(endpoint)
+        response = client.call(method_name, *args, rpc_timeout=timeout, **kwargs)
+        client.close()
+        return response
 
     def reset(self) -> None:
         """
         Clears current engagement.
         """
-        self._engagement = None  # Causes a new rpcq client to be created on next use
+        self._engagement = None
 
     @property
     def qvm_url(self) -> str:
@@ -131,16 +177,6 @@ class Client:
         else:
             yield self._http
 
-    # TODO(andrew): move compiler clients to this class too
-
-    def _rpcq_client(self, processor_id: str) -> rpcq.Client:
-        if not (self._rpcq and _engagement_valid(processor_id, self._engagement)):
-            self._engagement = self._create_engagement(processor_id)
-            self._rpcq = rpcq.Client(
-                endpoint=self._engagement.address, auth_config=_to_auth_config(self._engagement)
-            )
-        return self._rpcq
-
     def _create_engagement(self, processor_id: str) -> EngagementWithCredentials:
         return self.qcs_request(
             create_engagement, json_body=CreateEngagementRequest(quantum_processor_id=processor_id)
@@ -163,11 +199,11 @@ def _engagement_valid(processor_id: str, engagement: Optional[EngagementWithCred
     )
 
 
-def _to_auth_config(engagement: EngagementWithCredentials):
+def _to_auth_config(credentials: EngagementCredentials):
     return rpcq.ClientAuthConfig(
-        client_secret_key=engagement.credentials.client_secret.encode(),
-        client_public_key=engagement.credentials.client_public.encode(),
-        server_public_key=engagement.credentials.server_public.encode(),
+        client_secret_key=credentials.client_secret.encode(),
+        client_public_key=credentials.client_public.encode(),
+        server_public_key=credentials.server_public.encode(),
     )
 
 
@@ -177,7 +213,7 @@ def _parse_error(res: httpx.Response) -> ApiError:
     what went wrong as well as a "error_type" field indicating the kind of error that can be mapped
     to a Python type.
 
-    There's a fallback error UnknownError for other types of exceptions (network issues, api
+    There's a fallback error UnknownApiError for other types of exceptions (network issues, api
     gateway problems, etc.)
     """
     try:

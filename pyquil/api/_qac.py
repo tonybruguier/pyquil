@@ -16,13 +16,12 @@
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional, Sequence, Union
 
-import rpcq
 from rpcq.messages import (
     NativeQuilRequest,
     TargetDevice, QuiltBinaryExecutableResponse, PyQuilExecutableResponse,
 )
 
-from pyquil import api
+from pyquil.api import Client
 from pyquil.api._error_reporting import _record_call
 from pyquil.device import AbstractDevice
 from pyquil.parser import parse_program
@@ -47,22 +46,19 @@ class AbstractCompiler(ABC):
     """The abstract interface for a compiler."""
 
     _target_device: TargetDevice
-    _quilc_client: rpcq.Client
-    _api_client: Optional[api.Client]
+    _client: Optional[Client]
     _timeout: float
 
     def __init__(
-        self, *, device: AbstractDevice, client: Optional[api.Client], timeout: float
+        self, *, device: AbstractDevice, client: Optional[Client], timeout: float
     ) -> None:
         self._target_device = TargetDevice(isa=device.get_isa().to_dict(), specs={})
-        self._api_client = client or api.Client()
+        self._client = client or Client()
 
-        if not self._api_client.quilc_url.startswith("tcp://"):
+        if not self._client.quilc_url.startswith("tcp://"):
             raise ValueError(
-                f"Expected compiler URL '{self._api_client.quilc_url}' to start with 'tcp://'"
+                f"Expected compiler URL '{self._client.quilc_url}' to start with 'tcp://'"
             )
-
-        self._quilc_client = rpcq.Client(self._api_client.quilc_url, timeout=timeout)
         self.set_timeout(timeout)
 
     def get_version_info(self) -> Dict[str, Any]:
@@ -71,7 +67,10 @@ class AbstractCompiler(ABC):
 
         :return: Dictionary of version information.
         """
-        quilc_version_info = self._quilc_client.call("get_version_info")
+        quilc_version_info = self._client.compiler_rpcq_request(
+            "get_version_info",
+            timeout=self._timeout,
+        )
         return {"quilc": quilc_version_info}
 
     @_record_call
@@ -87,8 +86,11 @@ class AbstractCompiler(ABC):
         request = NativeQuilRequest(
             quil=program.out(calibrations=False), target_device=self._target_device
         )
-        response = self._quilc_client.call(
-            "quil_to_native_quil", request, protoquil=protoquil
+        response = self._client.compiler_rpcq_request(
+            "quil_to_native_quil",
+            request,
+            protoquil=protoquil,
+            timeout=self._timeout,
         ).asdict()
         nq_program = parse_program(response["quil"])
         nq_program.native_quil_metadata = response["metadata"]
@@ -98,11 +100,11 @@ class AbstractCompiler(ABC):
 
     def _connect(self) -> None:
         try:
-            quilc_version_dict = self._quilc_client.call("get_version_info")
+            quilc_version_dict = self._client.compiler_rpcq_request("get_version_info", timeout=self._timeout)
             _check_quilc_version(quilc_version_dict)
         except TimeoutError:
             raise QuilcNotRunning(
-                f"Request to quilc at {self._quilc_client.endpoint} timed out. "
+                f"Request to quilc at {self._client.quilc_url} timed out. "
                 "This could mean that quilc is not running, is not reachable, or is "
                 "responding slowly."
             )
@@ -129,16 +131,13 @@ class AbstractCompiler(ABC):
             raise ValueError(f"Cannot set timeout to negative value {timeout}")
 
         self._timeout = timeout
-        self._quilc_client.rpc_timeout = timeout
 
     @_record_call
     def reset(self) -> None:
         """
         Reset the state of the this compiler client.
         """
-        self._quilc_client.close()
-        self._quilc_client = rpcq.Client(self._api_client.quilc_url, timeout=self._timeout)
-        # TODO(andrew): reset api client?
+        pass
 
 
 def _check_quilc_version(version_dict: Dict[str, str]) -> None:
