@@ -131,6 +131,8 @@ class Client:
         else:
             yield self._http
 
+    # TODO(andrew): move compiler clients to this class too
+
     def _rpcq_client(self, processor_id: str) -> rpcq.Client:
         if not (self._rpcq and _engagement_valid(processor_id, self._engagement)):
             self._engagement = self._create_engagement(processor_id)

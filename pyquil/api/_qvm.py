@@ -110,7 +110,7 @@ programs run on this QVM.
 
         self.noise_model = device.noise_model if device else None
         self.compiler = (
-            QVMCompiler(endpoint=self.client.quilc_url, device=device) if device else None
+            QVMCompiler(device=device, client=client) if device else None
         )
 
         validate_noise_probabilities(gate_noise)
@@ -212,6 +212,8 @@ programs run on this QVM.
         :param trials: Number of shots to collect.
         :return: A list of a list of bits.
         """
+
+        # TODO(andrew): read this
         # Developer note: This code is for backwards compatibility. It can't be replaced with
         # ForestConnection._run_and_measure because we've turned off the ability to set
         # `needs_compilation` (that usually indicates the user is doing something iffy like

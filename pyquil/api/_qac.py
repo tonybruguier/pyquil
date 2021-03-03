@@ -42,6 +42,7 @@ class QuilcNotRunning(Exception):
 
 QuantumExecutable = Union[QuiltBinaryExecutableResponse, PyQuilExecutableResponse]
 
+
 class AbstractCompiler(ABC):
     """The abstract interface for a compiler."""
 
@@ -137,6 +138,7 @@ class AbstractCompiler(ABC):
         """
         self._quilc_client.close()
         self._quilc_client = rpcq.Client(self._api_client.quilc_url, timeout=self._timeout)
+        # TODO(andrew): reset api client?
 
 
 def _check_quilc_version(version_dict: Dict[str, str]) -> None:

@@ -245,6 +245,7 @@ class QPUCompiler(AbstractCompiler):
         """
         super().reset()
         self._calibration_program = None
+        # TODO(andrew): reset api client?
 
 
 class QVMCompiler(AbstractCompiler):
