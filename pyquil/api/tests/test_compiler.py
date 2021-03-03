@@ -26,18 +26,16 @@ def simple_program():
 
 
 def test_invalid_protocol(test_device: Device, monkeypatch: MonkeyPatch):
-    monkeypatch.setenv("QCS_SETTINGS_APPLICATIONS_PYQUIL_QUILC_URL", "not-http-or-tcp://example.com")
+    monkeypatch.setenv(
+        "QCS_SETTINGS_APPLICATIONS_PYQUIL_QUILC_URL", "not-http-or-tcp://example.com"
+    )
     client = Client()
 
     with pytest.raises(
-            ValueError,
-            match="Expected compiler URL 'not-http-or-tcp://example.com' to start with 'tcp://'"
+        ValueError,
+        match="Expected compiler URL 'not-http-or-tcp://example.com' to start with 'tcp://'",
     ):
-        QPUCompiler(
-            processor_id=test_device.name,
-            device=test_device,
-            client=client
-        )
+        QPUCompiler(processor_id=test_device.name, device=test_device, client=client)
 
 
 def test_compile_with_quilt_calibrations(compiler: QPUCompiler):

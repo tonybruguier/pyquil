@@ -189,7 +189,7 @@ def test_device_stuff(dummy_compiler: DummyCompiler):
         name="testy!",
         qam=None,  # not necessary for this test
         device=NxDevice(topo),
-        compiler=dummy_compiler
+        compiler=dummy_compiler,
     )
     assert nx.is_isomorphic(qc.qubit_topology(), topo)
 

@@ -22,7 +22,6 @@ def parse_equals(quil_string, *instructions):
 
 
 class DummyCompiler(AbstractCompiler):
-
     def __init__(self, device: AbstractDevice, client: Client):
         super().__init__(device=device, client=client, timeout=10)  # type: ignore
 

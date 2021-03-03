@@ -98,10 +98,7 @@ def _extract_memory_regions(
 class QPU(QAM):
     @_record_call
     def __init__(
-        self,
-        processor_id: str,
-        client: Optional[Client] = None,
-        priority: int = 1
+        self, *, processor_id: str, client: Optional[Client] = None, priority: int = 1
     ) -> None:
         """
         A connection to the QPU.
@@ -117,24 +114,6 @@ class QPU(QAM):
         self._last_results: Dict[str, np.ndarray] = {}
 
         super().__init__()
-
-# TODO(andrew): figure out where to put this
-#
-#     UserMessageError(
-#                 """It looks like you've tried to run a program against a QPU but do
-# not currently have a reservation on one. To reserve time on Rigetti
-# QPUs, use the command line interface, qcs, which comes pre-installed
-# in your QMI. From within your QMI, type:
-#
-#     qcs reserve --lattice <lattice-name>
-#
-# For more information, please see the docs at
-# https://www.rigetti.com/qcs/docs/reservations or reach out to Rigetti
-# support at support@rigetti.com."""
-#             )
-#
-#         logger.debug("QPU Client connecting to %s", endpoint)
-#
 
     def get_version_info(self) -> Dict[str, Any]:
         """
@@ -204,7 +183,7 @@ class QPU(QAM):
             processor_id=self.processor_id,
             method_name="execute_qpu_request",
             request=request,
-            priority=job_priority
+            priority=job_priority,
         )
         results = self._get_buffers(job_id)
         ro_sources = self._executable.ro_sources

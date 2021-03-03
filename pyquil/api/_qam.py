@@ -14,16 +14,16 @@
 #    limitations under the License.
 ##############################################################################
 import warnings
-
 from abc import ABC, abstractmethod
 from collections import defaultdict
 from typing import Dict, Sequence, Union, Optional
 
 import numpy as np
 from qcs_api_client.models import TranslateNativeQuilToEncryptedBinaryResponse
-from rpcq.messages import QuiltBinaryExecutableResponse, ParameterAref, PyQuilExecutableResponse
+from rpcq.messages import ParameterAref
 
 from pyquil.api._error_reporting import _record_call
+from pyquil.api._qac import QuantumExecutable
 from pyquil.experiment._main import Experiment
 
 
@@ -52,9 +52,7 @@ class QAM(ABC):
         self.reset()
 
     @_record_call
-    def load(
-        self, executable: TranslateNativeQuilToEncryptedBinaryResponse
-    ) -> "QAM":
+    def load(self, executable: QuantumExecutable) -> "QAM":
         """
         Initialize a QAM into a fresh state.
 

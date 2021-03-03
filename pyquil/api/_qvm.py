@@ -56,7 +56,6 @@ def check_qvm_version(version: str) -> None:
         )
 
 
-# TODO: remove this
 class QVMConnection(object):
     """
     Represents a connection to the QVM.
@@ -110,7 +109,9 @@ programs run on this QVM.
             )
 
         self.noise_model = device.noise_model if device else None
-        self.compiler = QVMCompiler(endpoint=self.client.quilc_url, device=device) if device else None
+        self.compiler = (
+            QVMCompiler(endpoint=self.client.quilc_url, device=device) if device else None
+        )
 
         validate_noise_probabilities(gate_noise)
         validate_noise_probabilities(measurement_noise)
@@ -124,9 +125,6 @@ programs run on this QVM.
         else:
             raise TypeError("random_seed should be None or a non-negative int")
 
-        # self._connection = ForestConnection(sync_endpoint=endpoint)
-        # self.session = self._connection.session  # backwards compatibility
-        self.client = client
         self.connect()
 
     def connect(self) -> None:
@@ -179,10 +177,12 @@ programs run on this QVM.
             trials,
             self.measurement_noise,
             self.gate_noise,
-            self.random_seed
+            self.random_seed,
         )
         response = self.client.post_json(self.client.qvm_url, payload)
-        buffers: Dict[str, np.ndarray] = {key: np.array(val) for key, val in response.json().items()}
+        buffers: Dict[str, np.ndarray] = {
+            key: np.array(val) for key, val in response.json().items()
+        }
 
         if len(buffers) == 0:
             return []
@@ -438,9 +438,8 @@ class QVM(QAM):
             only accept the result of :py:func:`compiler.native_quil_to_executable`. Setting this
             to True better emulates the behavior of a QPU.
         """
-        super().__init__()
-
         self.client = client or Client()
+        super().__init__()
 
         if (noise_model is not None) and (gate_noise is not None or measurement_noise is not None):
             raise ValueError(
@@ -558,7 +557,7 @@ http://pyquil.readthedocs.io/en/latest/noise_models.html#support-for-noisy-gates
             trials,
             self.measurement_noise,
             self.gate_noise,
-            self.random_seed
+            self.random_seed,
         )
         response = self.client.post_json(self.client.qvm_url, payload)
         ram: Dict[str, np.ndarray] = {key: np.array(val) for key, val in response.json().items()}
@@ -582,8 +581,7 @@ http://pyquil.readthedocs.io/en/latest/noise_models.html#support-for-noisy-gates
         Reset the state of the underlying QAM, and the QVM connection information.
         """
         super().reset()
-        # forest_connection = ForestConnection()
-        # self.connection = forest_connection
+        self.client.reset()
 
 
 TYPE_EXPECTATION = "expectation"

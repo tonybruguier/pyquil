@@ -17,11 +17,13 @@ import logging
 from typing import Dict, Any, Optional, List, Tuple
 
 from qcs_api_client.models.get_quilt_calibrations_response import GetQuiltCalibrationsResponse
-from qcs_api_client.models.translate_native_quil_to_encrypted_binary_request import \
-    TranslateNativeQuilToEncryptedBinaryRequest
-from qcs_api_client.models.translate_native_quil_to_encrypted_binary_response import \
-    TranslateNativeQuilToEncryptedBinaryResponse
-from qcs_api_client.operations.sync import translate_native_quil_to_encrypted_binary, get_quilt_calibrations
+from qcs_api_client.models.translate_native_quil_to_encrypted_binary_request import (
+    TranslateNativeQuilToEncryptedBinaryRequest,
+)
+from qcs_api_client.operations.sync import (
+    translate_native_quil_to_encrypted_binary,
+    get_quilt_calibrations,
+)
 from rpcq.messages import (
     PyQuilExecutableResponse,
     ParameterSpec,
@@ -29,7 +31,7 @@ from rpcq.messages import (
 
 from pyquil import api
 from pyquil.api._error_reporting import _record_call
-from pyquil.api._qac import AbstractCompiler
+from pyquil.api._qac import AbstractCompiler, QuantumExecutable
 from pyquil.api._rewrite_arithmetic import rewrite_arithmetic
 from pyquil.device._main import AbstractDevice
 from pyquil.parser import parse_program
@@ -183,18 +185,17 @@ class QPUCompiler(AbstractCompiler):
     @_record_call
     def native_quil_to_executable(
         self, nq_program: Program
-    ) -> TranslateNativeQuilToEncryptedBinaryResponse:
+    ) -> QuantumExecutable:
         arithmetic_response = rewrite_arithmetic(nq_program)  # TODO(andrew): is this still needed?
         request = TranslateNativeQuilToEncryptedBinaryRequest(
-            quil=arithmetic_response.quil,
-            num_shots=nq_program.num_shots
+            quil=arithmetic_response.quil, num_shots=nq_program.num_shots
         )
 
         # TODO(andrew): timeout?
         return self._api_client.qcs_request(
             translate_native_quil_to_encrypted_binary,
             quantum_processor_id=self.processor_id,
-            json_body=request
+            json_body=request,
         ).parsed
 
         # TODO(andrew): are these mutations still needed?
@@ -213,8 +214,7 @@ class QPUCompiler(AbstractCompiler):
 
     def _get_calibration_program(self) -> Program:
         response: GetQuiltCalibrationsResponse = self._api_client.qcs_request(
-            get_quilt_calibrations,
-            quantum_processor_id=self.processor_id
+            get_quilt_calibrations, quantum_processor_id=self.processor_id
         ).parsed
         return parse_program(response.quilt)
 
@@ -251,13 +251,10 @@ class QVMCompiler(AbstractCompiler):
     """
     Client to communicate with the compiler.
     """
+
     @_record_call
     def __init__(
-            self,
-            *,
-            device: AbstractDevice,
-            client: Optional[api.Client] = None,
-            timeout: float = 10
+        self, *, device: AbstractDevice, client: Optional[api.Client] = None, timeout: float = 10
     ) -> None:
         """
         Client to communicate with compiler.
@@ -269,7 +266,7 @@ class QVMCompiler(AbstractCompiler):
         super().__init__(device=device, client=client, timeout=timeout)
 
     @_record_call
-    def native_quil_to_executable(self, nq_program: Program) -> PyQuilExecutableResponse:
+    def native_quil_to_executable(self, nq_program: Program) -> QuantumExecutable:
         return PyQuilExecutableResponse(
             program=nq_program.out(),
             attributes=_extract_attribute_dictionary_from_program(nq_program),

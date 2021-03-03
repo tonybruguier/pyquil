@@ -53,7 +53,9 @@ def test_qvm_run_only_pqer(client: Client):
     p = Program(Declare("ro", "BIT"), X(0), MEASURE(0, MemoryReference("ro")))
     p.wrap_in_numshots_loop(1000)
 
-    with pytest.raises(TypeError, match="Make sure you have explicitly compiled your program.") as e:
+    with pytest.raises(
+        TypeError, match="Make sure you have explicitly compiled your program."
+    ) as e:
         qvm.load(p)
         qvm.run()
         qvm.wait()

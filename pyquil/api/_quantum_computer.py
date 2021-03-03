@@ -32,7 +32,7 @@ from rpcq.messages import QuiltBinaryExecutableResponse, PyQuilExecutableRespons
 from pyquil.api import Client
 from pyquil.api._compiler import QPUCompiler, QVMCompiler
 from pyquil.api._error_reporting import _record_call
-from pyquil.api._qac import AbstractCompiler
+from pyquil.api._qac import AbstractCompiler, QuantumExecutable
 from pyquil.api._qam import QAM
 from pyquil.api._qpu import QPU
 from pyquil.api._quantum_processors import get_device
@@ -117,7 +117,7 @@ class QuantumComputer:
     @_record_call
     def run(
         self,
-        executable: TranslateNativeQuilToEncryptedBinaryResponse,
+        executable: QuantumExecutable,
         memory_map: Optional[Mapping[str, Sequence[Union[int, float]]]] = None,
     ) -> np.ndarray:
         """
@@ -443,7 +443,7 @@ class QuantumComputer:
         protoquil_positional: Optional[bool] = None,
         *,
         protoquil: Optional[bool] = None,
-    ) -> TranslateNativeQuilToEncryptedBinaryResponse:
+    ) -> QuantumExecutable:
         """
         A high-level interface to program compilation.
 
@@ -491,8 +491,8 @@ class QuantumComputer:
             nq_program = self.compiler.quil_to_native_quil(program, protoquil=protoquil)
         else:
             nq_program = program
-        binary = self.compiler.native_quil_to_executable(nq_program)
-        return binary
+
+        return self.compiler.native_quil_to_executable(nq_program)
 
     # TODO(andrew): revisit this
     @_record_call
@@ -513,9 +513,7 @@ class QuantumComputer:
 
 
 @_record_call
-def list_quantum_computers(
-    qpus: bool = True, qvms: bool = True
-) -> List[str]:
+def list_quantum_computers(qpus: bool = True, qvms: bool = True) -> List[str]:
     """
     List the names of available quantum computers
 
@@ -528,7 +526,9 @@ def list_quantum_computers(
     """
     qc_names: List[str] = []
     if qpus:
-        qc_names += ["U057-W1845B-088-B1-a2-ISW"]# list(list_lattices(connection=connection).keys()) TODO(andrew): use qcs client
+        qc_names += [
+            "U057-W1845B-088-B1-a2-ISW"
+        ]  # list(list_lattices(connection=connection).keys()) TODO(andrew): use qcs client
 
     if qvms:
         qc_names += ["9q-square-qvm", "9q-square-noisy-qvm"]
@@ -705,11 +705,7 @@ def _get_qvm_with_topology(
 
 
 def _get_9q_square_qvm(
-    client: Client,
-    name: str,
-    noisy: bool,
-    qvm_type: str = "qvm",
-    compiler_timeout: float = 10,
+    client: Client, name: str, noisy: bool, qvm_type: str = "qvm", compiler_timeout: float = 10,
 ) -> QuantumComputer:
     """
     A nine-qubit 3x3 square lattice.
@@ -941,10 +937,7 @@ def get_qc(
         qpu = QPU(processor_id=device.name, client=client)
 
         compiler = QPUCompiler(
-            processor_id=prefix,
-            device=device,
-            client=client,
-            timeout=compiler_timeout,
+            processor_id=prefix, device=device, client=client, timeout=compiler_timeout,
         )
 
         return QuantumComputer(name=name, qam=qpu, device=device, compiler=compiler)

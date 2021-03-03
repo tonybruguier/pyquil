@@ -27,7 +27,12 @@ class Client:
     _config: QCSClientConfiguration
     _engagement: Optional[EngagementWithCredentials] = None
 
-    def __init__(self, *, http: Optional[httpx.Client] = None, configuration: Optional[QCSClientConfiguration] = None):
+    def __init__(
+        self,
+        *,
+        http: Optional[httpx.Client] = None,
+        configuration: Optional[QCSClientConfiguration] = None,
+    ):
         """
         Instantiate a client.
 
@@ -65,7 +70,14 @@ class Client:
         with self._http_client() as http:
             return request_fn(client=http, **kwargs)
 
-    def rpcq_request(self, processor_id: str, method_name: str, *args: Any, timeout: Optional[float] = None, **kwargs) -> Any:
+    def rpcq_request(
+        self,
+        processor_id: str,
+        method_name: str,
+        *args: Any,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ) -> Any:
         """
         Execute a remote function against current engagement endpoint. If there is no current engagement, or if it is
         invalid, a new engagement will be requested for the given processor.
@@ -79,7 +91,7 @@ class Client:
         """
         return self._rpcq_client(processor_id).call(method_name, *args, timeout, **kwargs)
 
-    def reset(self):
+    def reset(self) -> None:
         """
         Clears current engagement.
         """
@@ -123,15 +135,13 @@ class Client:
         if not (self._rpcq and _engagement_valid(processor_id, self._engagement)):
             self._engagement = self._create_engagement(processor_id)
             self._rpcq = rpcq.Client(
-                endpoint=self._engagement.address,
-                auth_config=_to_auth_config(self._engagement)
+                endpoint=self._engagement.address, auth_config=_to_auth_config(self._engagement)
             )
         return self._rpcq
 
     def _create_engagement(self, processor_id: str) -> EngagementWithCredentials:
         return self.qcs_request(
-            create_engagement,
-            json_body=CreateEngagementRequest(quantum_processor_id=processor_id)
+            create_engagement, json_body=CreateEngagementRequest(quantum_processor_id=processor_id)
         ).parsed
 
 
@@ -146,7 +156,7 @@ def _engagement_valid(processor_id: str, engagement: Optional[EngagementWithCred
             engagement.credentials.server_public != "",
             engagement.expires_at == "" or parsedate(engagement.expires_at) > datetime.now(tzutc()),
             engagement.address != "",
-            engagement.quantum_processor_id == processor_id
+            engagement.quantum_processor_id == processor_id,
         ]
     )
 
@@ -155,7 +165,7 @@ def _to_auth_config(engagement: EngagementWithCredentials):
     return rpcq.ClientAuthConfig(
         client_secret_key=engagement.credentials.client_secret.encode(),
         client_public_key=engagement.credentials.client_public.encode(),
-        server_public_key=engagement.credentials.server_public.encode()
+        server_public_key=engagement.credentials.server_public.encode(),
     )
 
 

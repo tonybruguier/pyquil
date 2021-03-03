@@ -18,12 +18,15 @@ from typing import Dict, List, Union, Optional, Any, Set, cast, Iterable, Sequen
 from warnings import warn
 
 import numpy as np
-from qcs_api_client.client import QCSClientConfiguration
 
-from pyquil import Program
 from pyquil.api import Client
 from pyquil.api._error_reporting import _record_call
-from pyquil.api._qvm import validate_qubit_list, TYPE_MULTISHOT_MEASURE, TYPE_WAVEFUNCTION, TYPE_EXPECTATION
+from pyquil.api._qvm import (
+    validate_qubit_list,
+    TYPE_MULTISHOT_MEASURE,
+    TYPE_WAVEFUNCTION,
+    TYPE_EXPECTATION,
+)
 from pyquil.gates import MOVE
 from pyquil.paulis import PauliSum, PauliTerm
 from pyquil.quil import Program, percolate_declares
