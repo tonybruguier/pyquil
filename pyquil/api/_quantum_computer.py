@@ -923,13 +923,14 @@ def get_qc(
                 "is meant for controlling noise models on QVMs."
             )
 
+        # TODO(andrew): is this correct usage of device.name?
         qpu = QPU(processor_id=device.name, client=client)
 
         compiler = QPUCompiler(
             processor_id=prefix, device=device, client=client, timeout=compiler_timeout,
         )
 
-        return QuantumComputer(name=name, qam=qpu, device=device, compiler=compiler)
+        return QuantumComputer(name=name, qam=qpu, compiler=compiler)
 
 
 @contextmanager
