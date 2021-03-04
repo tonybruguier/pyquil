@@ -138,7 +138,7 @@ class AbstractCompiler(ABC):
         """
         Reset the state of the this compiler client.
         """
-        pass
+        self._client.reset()
 
 
 def _check_quilc_version(version_dict: Dict[str, str]) -> None:

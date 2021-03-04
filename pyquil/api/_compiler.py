@@ -186,7 +186,7 @@ class QPUCompiler(AbstractCompiler):
     def native_quil_to_executable(
         self, nq_program: Program
     ) -> QuantumExecutable:
-        arithmetic_response = rewrite_arithmetic(nq_program)  # TODO(andrew): is this still needed?
+        arithmetic_response = rewrite_arithmetic(nq_program)
         request = TranslateNativeQuilToEncryptedBinaryRequest(
             quil=arithmetic_response.quil, num_shots=nq_program.num_shots
         )
@@ -196,7 +196,7 @@ class QPUCompiler(AbstractCompiler):
             translate_native_quil_to_encrypted_binary,
             quantum_processor_id=self.processor_id,
             json_body=request,
-        ).parsed
+        )
 
         response.recalculation_table = arithmetic_response.recalculation_table  # type: ignore
         response.memory_descriptors = _collect_memory_descriptors(nq_program)
@@ -215,7 +215,7 @@ class QPUCompiler(AbstractCompiler):
     def _get_calibration_program(self) -> Program:
         response: GetQuiltCalibrationsResponse = self._client.qcs_request(
             get_quilt_calibrations, quantum_processor_id=self.processor_id
-        ).parsed
+        )
         return parse_program(response.quilt)
 
     @_record_call

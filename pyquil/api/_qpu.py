@@ -110,10 +110,9 @@ class QPU(QAM):
         """
         self.processor_id = processor_id
         self.priority = priority
-        self._client = client or Client()
         self._last_results: Dict[str, np.ndarray] = {}
 
-        super().__init__()
+        super().__init__(client)
 
     def get_version_info(self) -> Dict[str, Any]:
         """
@@ -334,11 +333,3 @@ class QPU(QAM):
             )
         else:
             raise ValueError(f"Unexpected expression in gate parameter: {expression}")
-
-    @_record_call
-    def reset(self) -> None:
-        """
-        Reset the state of the underlying QAM, and the QPU Client connection.
-        """
-        super().reset()
-        self._client.reset()

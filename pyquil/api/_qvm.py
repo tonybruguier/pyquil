@@ -213,12 +213,6 @@ programs run on this QVM.
         :return: A list of a list of bits.
         """
 
-        # TODO(andrew): read this
-        # Developer note: This code is for backwards compatibility. It can't be replaced with
-        # ForestConnection._run_and_measure because we've turned off the ability to set
-        # `needs_compilation` (that usually indicates the user is doing something iffy like
-        # using a noise model with this function)
-
         payload = self._run_and_measure_payload(quil_program, qubits, trials)
         response = self.client.post_json(self.client.qvm_url, payload)
         return cast(List[List[int]], response.json())
@@ -440,8 +434,7 @@ class QVM(QAM):
             only accept the result of :py:func:`compiler.native_quil_to_executable`. Setting this
             to True better emulates the behavior of a QPU.
         """
-        self.client = client or Client()
-        super().__init__()
+        super().__init__(client)
 
         if (noise_model is not None) and (gate_noise is not None or measurement_noise is not None):
             raise ValueError(
@@ -477,7 +470,7 @@ http://pyquil.readthedocs.io/en/latest/noise_models.html#support-for-noisy-gates
             version_dict = self.get_version_info()
             check_qvm_version(version_dict)
         except ConnectionError:
-            raise QVMNotRunning(f"No QVM server running at {self.client.qvm_url}")
+            raise QVMNotRunning(f"No QVM server running at {self._client.qvm_url}")
 
     @_record_call
     def get_version_info(self) -> str:
@@ -486,7 +479,7 @@ http://pyquil.readthedocs.io/en/latest/noise_models.html#support-for-noisy-gates
 
         :return: String with version information
         """
-        return self.client.qvm_version()
+        return self._client.qvm_version()
 
     @_record_call
     def load(self, executable: Union[Program, PyQuilExecutableResponse]) -> "QVM":
@@ -561,7 +554,7 @@ http://pyquil.readthedocs.io/en/latest/noise_models.html#support-for-noisy-gates
             self.gate_noise,
             self.random_seed,
         )
-        response = self.client.post_json(self.client.qvm_url, payload)
+        response = self._client.post_json(self._client.qvm_url, payload)
         ram: Dict[str, np.ndarray] = {key: np.array(val) for key, val in response.json().items()}
         self._memory_results.update(ram)
 
@@ -576,14 +569,6 @@ http://pyquil.readthedocs.io/en/latest/noise_models.html#support-for-noisy-gates
         p += quil_program
 
         return percolate_declares(p)
-
-    @_record_call
-    def reset(self) -> None:
-        """
-        Reset the state of the underlying QAM, and the QVM connection information.
-        """
-        super().reset()
-        self.client.reset()
 
 
 TYPE_EXPECTATION = "expectation"

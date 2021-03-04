@@ -25,6 +25,7 @@ class Client:
 
     _http: Optional[httpx.Client]
     _config: QCSClientConfiguration
+    _config_reloader: Callable[[], QCSClientConfiguration]
     _engagement: Optional[EngagementWithCredentials] = None
 
     def __init__(
@@ -40,7 +41,8 @@ class Client:
                ``configuration``.
         :param configuration: QCS configuration.
         """
-        self._config = configuration or QCSClientConfiguration.load()
+        self._config_reloader = lambda: configuration or QCSClientConfiguration.load()
+        self._config = self._config_reloader()
         self._http = http
 
     def post_json(self, url: str, json: Any, timeout: float = 5) -> httpx.Response:
@@ -59,7 +61,7 @@ class Client:
                 raise _parse_error(res)
         return res
 
-    def qcs_request(self, request_fn: Callable[..., httpx.Response], **kwargs: Any) -> Response:
+    def qcs_request(self, request_fn: Callable[..., Response], **kwargs: Any) -> Any:
         """
         Execute a QCS request.
 
@@ -68,7 +70,7 @@ class Client:
         :return: HTTP response corresponding to request.
         """
         with self._http_client() as http:
-            return request_fn(client=http, **kwargs)
+            return request_fn(client=http, **kwargs).parsed
 
     def compiler_rpcq_request(
             self,
@@ -134,7 +136,6 @@ class Client:
             auth_config: Optional[ClientAuthConfig] = None,
             **kwargs,
     ) -> Any:
-        # TODO(andrew): should this use a try-finally?
         client = rpcq.Client(endpoint, auth_config=auth_config)
         response = client.call(method_name, *args, rpc_timeout=timeout, **kwargs)
         client.close()
@@ -142,9 +143,10 @@ class Client:
 
     def reset(self) -> None:
         """
-        Clears current engagement.
+        Clears current engagement and reloads configuration (based on value passed into constructor).
         """
         self._engagement = None
+        self._config = self._config_reloader()
 
     @property
     def qvm_url(self) -> str:
@@ -183,7 +185,7 @@ class Client:
     def _create_engagement(self, processor_id: str) -> EngagementWithCredentials:
         return self.qcs_request(
             create_engagement, json_body=CreateEngagementRequest(quantum_processor_id=processor_id)
-        ).parsed
+        )
 
 
 def _engagement_valid(processor_id: str, engagement: Optional[EngagementWithCredentials]) -> bool:

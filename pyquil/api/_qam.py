@@ -22,6 +22,7 @@ import numpy as np
 from qcs_api_client.models import TranslateNativeQuilToEncryptedBinaryResponse
 from rpcq.messages import ParameterAref
 
+from pyquil.api import Client
 from pyquil.api._error_reporting import _record_call
 from pyquil.api._qac import QuantumExecutable
 from pyquil.experiment._main import Experiment
@@ -43,12 +44,14 @@ class QAM(ABC):
     """
 
     status: str
+    _client: Client
     _variables_shim: Dict[ParameterAref, Union[int, float]]
     _executable: TranslateNativeQuilToEncryptedBinaryResponse
     _memory_results: Dict[str, np.ndarray]
 
     @_record_call
-    def __init__(self) -> None:
+    def __init__(self, client: Optional[Client] = None) -> None:
+        self._client = client or Client()
         self.reset()
 
     @_record_call
@@ -161,6 +164,7 @@ class QAM(ABC):
         when it has gotten into an unwanted state. This can happen, for example, if the QAM
         is interrupted in the middle of a run.
         """
+        self._client.reset()
         self._variables_shim = {}
         self._executable = None
         self._memory_results = defaultdict(lambda: None)

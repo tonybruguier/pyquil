@@ -488,13 +488,10 @@ class QuantumComputer:
 
         return self.compiler.native_quil_to_executable(nq_program)
 
-    # TODO(andrew): revisit this
     @_record_call
     def reset(self) -> None:
         """
-        Reset the QuantumComputer's QAM to its initial state, and refresh all the connection
-        objects in the event that the configuration file has changed during the existence
-        of this QuantumComputer object.
+        Reset the QuantumComputer's QAM and compiler.
         """
         self.qam.reset()
         self.compiler.reset()
@@ -973,7 +970,6 @@ def _port_used(host: str, port: int) -> bool:
         s.close()
 
 
-# TODO(andrew): Do we still need this?
 @contextmanager
 def local_forest_runtime(
     *,
