@@ -192,25 +192,25 @@ class QPUCompiler(AbstractCompiler):
         )
 
         # TODO(andrew): timeout?
-        return self._client.qcs_request(
+        response = self._client.qcs_request(
             translate_native_quil_to_encrypted_binary,
             quantum_processor_id=self.processor_id,
             json_body=request,
         ).parsed
 
-        # TODO(andrew): are these mutations still needed?
-        #
-        # response.recalculation_table = arithmetic_response.recalculation_table  # type: ignore
-        # response.memory_descriptors = _collect_memory_descriptors(nq_program)
-        #
-        # # Convert strings to MemoryReference for downstream processing.
-        # response.ro_sources = [(parse_mref(mref), source) for mref, source in response.ro_sources]
-        #
-        # # TODO (kalzoo): this is a temporary workaround to migrate memory location parsing from
-        # # the client side (where it was pre-quilt) to the service side. In some cases, the service
-        # # won't return ro_sources, and so we can fall back to parsing the change on the client side.
-        # if response.ro_sources == []:
-        #     response.ro_sources = _collect_classical_memory_write_locations(nq_program)
+        response.recalculation_table = arithmetic_response.recalculation_table  # type: ignore
+        response.memory_descriptors = _collect_memory_descriptors(nq_program)
+
+        # Convert strings to MemoryReference for downstream processing.
+        response.ro_sources = [(parse_mref(mref), source) for mref, source in response.ro_sources]
+
+        # TODO (kalzoo): this is a temporary workaround to migrate memory location parsing from
+        # the client side (where it was pre-quilt) to the service side. In some cases, the service
+        # won't return ro_sources, and so we can fall back to parsing the change on the client side.
+        if response.ro_sources == []:
+            response.ro_sources = _collect_classical_memory_write_locations(nq_program)
+
+        return response
 
     def _get_calibration_program(self) -> Program:
         response: GetQuiltCalibrationsResponse = self._client.qcs_request(

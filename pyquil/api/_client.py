@@ -12,6 +12,7 @@ from qcs_api_client.client import QCSClientConfiguration, build_sync_client
 from qcs_api_client.models import EngagementWithCredentials, CreateEngagementRequest, EngagementCredentials
 from qcs_api_client.operations.sync import create_engagement
 from qcs_api_client.types import Response
+from rpcq import ClientAuthConfig
 
 from pyquil.api._errors import ApiError, UnknownApiError, TooManyQubitsError, error_mapping
 from pyquil.api._logger import logger
@@ -115,7 +116,7 @@ class Client:
         if not _engagement_valid(processor_id, self._engagement):
             self._engagement = self._create_engagement(processor_id)
 
-        return self.rpcq_request(
+        return self._rpcq_request(
             self._engagement.address,
             method_name,
             *args,
@@ -129,10 +130,12 @@ class Client:
             endpoint: str,
             method_name: str,
             *args: Any,
-            timeout: Optional[float] = None, **kwargs
+            timeout: Optional[float] = None,
+            auth_config: Optional[ClientAuthConfig] = None,
+            **kwargs,
     ) -> Any:
         # TODO(andrew): should this use a try-finally?
-        client = rpcq.Client(endpoint)
+        client = rpcq.Client(endpoint, auth_config=auth_config)
         response = client.call(method_name, *args, rpc_timeout=timeout, **kwargs)
         client.close()
         return response

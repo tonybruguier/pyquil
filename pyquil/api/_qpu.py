@@ -165,7 +165,7 @@ class QPU(QAM):
         # supplied executable to have been compiled, QVM.run() does not.
         if isinstance(self._executable, Program):
             raise TypeError(
-                "It looks like you have provided a Program where an Executable"
+                "It looks like you have provided a Program where an executable"
                 " is expected. Please use QuantumComputer.compile() to compile"
                 " your program."
             )
@@ -178,6 +178,7 @@ class QPU(QAM):
             id=str(uuid.uuid4()),
         )
 
+        # TODO(andrew): timeout?
         job_priority = run_priority if run_priority is not None else self.priority
         job_id = self._client.processor_rpcq_request(
             self.processor_id,
@@ -237,7 +238,7 @@ class QPU(QAM):
                 patch_values[memory_reference_name] = [0.0] * len(recalculation_table)
 
         assert isinstance(self._executable, TranslateNativeQuilToEncryptedBinaryResponse)
-        for name, spec in self._executable.memory_descriptors.to_dict().items():
+        for name, spec in self._executable.memory_descriptors.items():
             # NOTE: right now we fake reading out measurement values into classical memory
             # hence we omit them here from the patch table.
             if any(name == mref.name for mref, _ in self._executable.ro_sources):

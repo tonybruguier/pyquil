@@ -5,8 +5,7 @@ from requests import RequestException
 from pyquil.api import (
     QVMConnection,
     QVMCompiler,
-    get_benchmarker,
-    Client,
+    Client, BenchmarkConnection,
 )
 from pyquil.api._errors import UnknownApiError
 from pyquil.api._qac import QuilcNotRunning, QuilcVersionMismatch
@@ -155,9 +154,9 @@ def client():
 
 
 @pytest.fixture(scope="session")
-def benchmarker():
+def benchmarker(client: Client):
     try:
-        bm = get_benchmarker(timeout=2)
+        bm = BenchmarkConnection(client=client, timeout=2)
         bm.apply_clifford_to_pauli(Program(I(0)), sX(0))
         return bm
     except (RequestException, TimeoutError) as e:
