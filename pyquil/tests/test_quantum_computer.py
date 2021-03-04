@@ -4,6 +4,7 @@ import random
 import networkx as nx
 import numpy as np
 import pytest
+from rpcq.messages import ParameterAref, PyQuilExecutableResponse
 
 from pyquil import Program, get_qc, list_quantum_computers
 from pyquil.api import QVM, QuantumComputer, local_forest_runtime, Client
@@ -21,11 +22,10 @@ from pyquil.api._quantum_computer import (
 )
 from pyquil.device import NxDevice, gates_in_isa
 from pyquil.gates import CNOT, H, I, MEASURE, RX, X
-from pyquil.quilbase import Declare, MemoryReference
 from pyquil.noise import decoherence_noise_with_asymmetric_ro
 from pyquil.pyqvm import PyQVM
+from pyquil.quilbase import Declare, MemoryReference
 from pyquil.tests.utils import DummyCompiler
-from rpcq.messages import ParameterAref, PyQuilExecutableResponse
 
 
 def test_flip_array_to_prog():

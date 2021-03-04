@@ -26,6 +26,8 @@ import networkx as nx
 import numpy as np
 from rpcq.messages import TargetDevice
 
+from qcs_api_client.operations.sync import list_quantum_processors
+from qcs_api_client.models import ListQuantumProcessorsResponse
 from pyquil.api import Client
 from pyquil.api._compiler import QPUCompiler, QVMCompiler
 from pyquil.api._error_reporting import _record_call
@@ -504,22 +506,19 @@ class QuantumComputer:
 
 
 @_record_call
-def list_quantum_computers(qpus: bool = True, qvms: bool = True) -> List[str]:
+def list_quantum_computers(client: Optional[Client] = None, qpus: bool = True, qvms: bool = True) -> List[str]:
     """
     List the names of available quantum computers
 
-    :param connection: An optional :py:class:ForestConnection` object. If not specified,
-        the default values for URL endpoints will be used, and your API key
-        will be read from ~/.pyquil_config. If you deign to change any
-        of these parameters, pass your own :py:class:`ForestConnection` object.
-    :param qpus: Whether to include QPU's in the list.
-    :param qvms: Whether to include QVM's in the list.
+    :param client: Optional QCS client. If none is provided, a default client will be created.
+    :param qpus: Whether to include QPUs in the list.
+    :param qvms: Whether to include QVMs in the list.
     """
+    client = client or Client()
     qc_names: List[str] = []
     if qpus:
-        qc_names += [
-            "U057-W1845B-088-B1-a2-ISW"
-        ]  # list(list_lattices(connection=connection).keys()) TODO(andrew): use qcs client
+        qcs: ListQuantumProcessorsResponse = client.qcs_request(list_quantum_processors, page_size=100)
+        qc_names += [qc.id for qc in qcs.quantum_processors]
 
     if qvms:
         qc_names += ["9q-square-qvm", "9q-square-noisy-qvm"]
