@@ -74,17 +74,19 @@ def test_sync_run_mock(qvm: QVMConnection, httpx_mock: HTTPXMock):
     mock_qvm = qvm
     mock_endpoint = mock_qvm.client.qvm_url
     httpx_mock.add_response(
-            method="POST",
-            url=mock_endpoint,
-            match_content=json.dumps({
+        method="POST",
+        url=mock_endpoint,
+        match_content=json.dumps(
+            {
                 "type": "multishot",
                 "addresses": {"ro": [0, 1]},
                 "trials": 2,
                 "compiled-quil": "DECLARE ro BIT[2]\nH 0\nCNOT 0 1\nMEASURE 0 ro[0]\nMEASURE 1 ro[1]\n",
                 "rng-seed": 52,
-            }).encode(),
-            json={"ro": [[0, 0], [1, 1]]}
-        )
+            }
+        ).encode(),
+        json={"ro": [[0, 0], [1, 1]]},
+    )
 
     assert mock_qvm.run(BELL_STATE_MEASURE, [0, 1], trials=2) == [[0, 0], [1, 1]]
 
@@ -117,14 +119,16 @@ def test_sync_run_and_measure_mock(qvm: QVMConnection, httpx_mock: HTTPXMock):
     httpx_mock.add_response(
         method="POST",
         url=mock_endpoint,
-        match_content=json.dumps({
-            "type": "multishot-measure",
-            "qubits": [0, 1],
-            "trials": 2,
-            "compiled-quil": "H 0\nCNOT 0 1\n",
-            "rng-seed": 52,
-        }).encode(),
-        json=[[0, 0], [1, 1]]
+        match_content=json.dumps(
+            {
+                "type": "multishot-measure",
+                "qubits": [0, 1],
+                "trials": 2,
+                "compiled-quil": "H 0\nCNOT 0 1\n",
+                "rng-seed": 52,
+            }
+        ).encode(),
+        json=[[0, 0], [1, 1]],
     )
 
     assert mock_qvm.run_and_measure(BELL_STATE, [0, 1], trials=2) == [[0, 0], [1, 1]]
@@ -152,18 +156,18 @@ def test_sync_expectation_mock(qvm: QVMConnection, httpx_mock: HTTPXMock):
     httpx_mock.add_response(
         method="POST",
         url=mock_endpoint,
-        match_content=json.dumps({
-            "type": "expectation",
-            "state-preparation": BELL_STATE.out(),
-            "operators": ["Z 0\n", "Z 1\n", "Z 0\nZ 1\n"],
-            "rng-seed": 52,
-        }).encode(),
-        json=[0.0, 0.0, 1.0]
+        match_content=json.dumps(
+            {
+                "type": "expectation",
+                "state-preparation": BELL_STATE.out(),
+                "operators": ["Z 0\n", "Z 1\n", "Z 0\nZ 1\n"],
+                "rng-seed": 52,
+            }
+        ).encode(),
+        json=[0.0, 0.0, 1.0],
     )
 
-    result = mock_qvm.expectation(
-        BELL_STATE, [Program(Z(0)), Program(Z(1)), Program(Z(0), Z(1))]
-    )
+    result = mock_qvm.expectation(BELL_STATE, [Program(Z(0)), Program(Z(1)), Program(Z(0), Z(1))])
     exp_expected = [0.0, 0.0, 1.0]
     np.testing.assert_allclose(exp_expected, result)
 
@@ -196,13 +200,15 @@ def test_sync_paulisum_expectation(qvm: QVMConnection, httpx_mock: HTTPXMock):
     httpx_mock.add_response(
         method="POST",
         url=mock_endpoint,
-        match_content=json.dumps({
-            "type": "expectation",
-            "state-preparation": BELL_STATE.out(),
-            "operators": ["Z 0\nZ 1\n", "Z 0\n", "Z 1\n"],
-            "rng-seed": 52,
-        }).encode(),
-        json=[1.0, 0.0, 0.0]
+        match_content=json.dumps(
+            {
+                "type": "expectation",
+                "state-preparation": BELL_STATE.out(),
+                "operators": ["Z 0\nZ 1\n", "Z 0\n", "Z 1\n"],
+                "rng-seed": 52,
+            }
+        ).encode(),
+        json=[1.0, 0.0, 0.0],
     )
 
     z0 = PauliTerm("Z", 0)

@@ -177,13 +177,9 @@ class QPU(QAM):
             id=str(uuid.uuid4()),
         )
 
-        # TODO(andrew): timeout?
         job_priority = run_priority if run_priority is not None else self.priority
         job_id = self._client.processor_rpcq_request(
-            self.processor_id,
-            "execute_qpu_request",
-            request,
-            priority=job_priority,
+            self.processor_id, "execute_qpu_request", request, priority=job_priority,
         )
         results = self._get_buffers(job_id)
         ro_sources = self._executable.ro_sources
@@ -214,7 +210,9 @@ class QPU(QAM):
         :param job_id: Unique identifier for the job in question
         :return: Decoded buffers or throw an error
         """
-        buffers = self._client.processor_rpcq_request(self.processor_id, "get_buffers", job_id, wait=True)
+        buffers = self._client.processor_rpcq_request(
+            self.processor_id, "get_buffers", job_id, wait=True
+        )
         return {k: decode_buffer(v) for k, v in buffers.items()}
 
     def _build_patch_values(self) -> Dict[str, List[Union[int, float]]]:

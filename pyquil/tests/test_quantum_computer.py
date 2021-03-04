@@ -138,13 +138,9 @@ def test_construct_strength_two_orthogonal_array():
 def test_measure_bitstrings(client: Client):
     device = NxDevice(nx.complete_graph(2))
     dummy_compiler = DummyCompiler(device=device, client=client)
-    qc_pyqvm = QuantumComputer(
-        name="testy!", qam=PyQVM(n_qubits=2), compiler=dummy_compiler
-    )
+    qc_pyqvm = QuantumComputer(name="testy!", qam=PyQVM(n_qubits=2), compiler=dummy_compiler)
     qc_forest = QuantumComputer(
-        name="testy!",
-        qam=QVM(client=client, gate_noise=[0.00] * 3),
-        compiler=dummy_compiler,
+        name="testy!", qam=QVM(client=client, gate_noise=[0.00] * 3), compiler=dummy_compiler,
     )
     prog = Program(I(0), I(1))
     meas_qubits = [0, 1]

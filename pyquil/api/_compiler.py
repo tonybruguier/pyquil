@@ -183,9 +183,7 @@ class QPUCompiler(AbstractCompiler):
         self.processor_id = processor_id
 
     @_record_call
-    def native_quil_to_executable(
-        self, nq_program: Program
-    ) -> QuantumExecutable:
+    def native_quil_to_executable(self, nq_program: Program) -> QuantumExecutable:
         arithmetic_response = rewrite_arithmetic(nq_program)
         request = TranslateNativeQuilToEncryptedBinaryRequest(
             quil=arithmetic_response.quil, num_shots=nq_program.num_shots

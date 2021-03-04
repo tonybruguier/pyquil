@@ -52,12 +52,7 @@ from pyquil.quilatom import qubit_index
 
 class QuantumComputer:
     def __init__(
-        self,
-        *,
-        name: str,
-        qam: QAM,
-        compiler: AbstractCompiler,
-        symmetrize_readout: bool = False,
+        self, *, name: str, qam: QAM, compiler: AbstractCompiler, symmetrize_readout: bool = False,
     ) -> None:
         """
         A quantum computer for running quantum programs.
@@ -506,7 +501,9 @@ class QuantumComputer:
 
 
 @_record_call
-def list_quantum_computers(client: Optional[Client] = None, qpus: bool = True, qvms: bool = True) -> List[str]:
+def list_quantum_computers(
+    client: Optional[Client] = None, qpus: bool = True, qvms: bool = True
+) -> List[str]:
     """
     List the names of available quantum computers
 
@@ -517,7 +514,9 @@ def list_quantum_computers(client: Optional[Client] = None, qpus: bool = True, q
     client = client or Client()
     qc_names: List[str] = []
     if qpus:
-        qcs: ListQuantumProcessorsResponse = client.qcs_request(list_quantum_processors, page_size=100)
+        qcs: ListQuantumProcessorsResponse = client.qcs_request(
+            list_quantum_processors, page_size=100
+        )
         qc_names += [qc.id for qc in qcs.quantum_processors]
 
     if qvms:
@@ -923,7 +922,6 @@ def get_qc(
                 "is meant for controlling noise models on QVMs."
             )
 
-        # TODO(andrew): is this correct usage of device.name?
         qpu = QPU(processor_id=device.name, client=client)
 
         compiler = QPUCompiler(

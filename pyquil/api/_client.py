@@ -9,7 +9,11 @@ import rpcq
 from dateutil.parser import parse as parsedate
 from dateutil.tz import tzutc
 from qcs_api_client.client import QCSClientConfiguration, build_sync_client
-from qcs_api_client.models import EngagementWithCredentials, CreateEngagementRequest, EngagementCredentials
+from qcs_api_client.models import (
+    EngagementWithCredentials,
+    CreateEngagementRequest,
+    EngagementCredentials,
+)
 from qcs_api_client.operations.sync import create_engagement
 from qcs_api_client.types import Response
 from rpcq import ClientAuthConfig
@@ -73,11 +77,7 @@ class Client:
             return request_fn(client=http, **kwargs).parsed
 
     def compiler_rpcq_request(
-            self,
-            method_name: str,
-            *args: Any,
-            timeout: Optional[float] = None,
-            **kwargs
+        self, method_name: str, *args: Any, timeout: Optional[float] = None, **kwargs
     ) -> Any:
         """
         Execute a remote function against the Quil compiler.
@@ -88,13 +88,7 @@ class Client:
         :param kwargs: Keyword arguments that will be passed to the remote function.
         :return: Result from remote function.
         """
-        return self._rpcq_request(
-            self.quilc_url,
-            method_name,
-            *args,
-            timeout=timeout,
-            **kwargs,
-        )
+        return self._rpcq_request(self.quilc_url, method_name, *args, timeout=timeout, **kwargs,)
 
     def processor_rpcq_request(
         self,
@@ -128,13 +122,13 @@ class Client:
         )
 
     def _rpcq_request(
-            self,
-            endpoint: str,
-            method_name: str,
-            *args: Any,
-            timeout: Optional[float] = None,
-            auth_config: Optional[ClientAuthConfig] = None,
-            **kwargs,
+        self,
+        endpoint: str,
+        method_name: str,
+        *args: Any,
+        timeout: Optional[float] = None,
+        auth_config: Optional[ClientAuthConfig] = None,
+        **kwargs,
     ) -> Any:
         client = rpcq.Client(endpoint, auth_config=auth_config)
         response = client.call(method_name, *args, rpc_timeout=timeout, **kwargs)

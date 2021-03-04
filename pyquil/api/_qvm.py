@@ -109,9 +109,7 @@ programs run on this QVM.
             )
 
         self.noise_model = device.noise_model if device else None
-        self.compiler = (
-            QVMCompiler(device=device, client=client) if device else None
-        )
+        self.compiler = QVMCompiler(device=device, client=client) if device else None
 
         validate_noise_probabilities(gate_noise)
         validate_noise_probabilities(measurement_noise)

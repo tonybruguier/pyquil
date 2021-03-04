@@ -18,7 +18,9 @@ from typing import Any, Dict, List, Optional, Sequence, Union
 
 from rpcq.messages import (
     NativeQuilRequest,
-    TargetDevice, QuiltBinaryExecutableResponse, PyQuilExecutableResponse,
+    TargetDevice,
+    QuiltBinaryExecutableResponse,
+    PyQuilExecutableResponse,
 )
 
 from pyquil.api import Client
@@ -49,9 +51,7 @@ class AbstractCompiler(ABC):
     _client: Optional[Client]
     _timeout: float
 
-    def __init__(
-        self, *, device: AbstractDevice, client: Optional[Client], timeout: float
-    ) -> None:
+    def __init__(self, *, device: AbstractDevice, client: Optional[Client], timeout: float) -> None:
         self.device = device
         self._client = client or Client()
 
@@ -68,8 +68,7 @@ class AbstractCompiler(ABC):
         :return: Dictionary of version information.
         """
         quilc_version_info = self._client.compiler_rpcq_request(
-            "get_version_info",
-            timeout=self._timeout,
+            "get_version_info", timeout=self._timeout,
         )
         return {"quilc": quilc_version_info}
 
@@ -88,10 +87,7 @@ class AbstractCompiler(ABC):
             quil=program.out(calibrations=False), target_device=target_device
         )
         response = self._client.compiler_rpcq_request(
-            "quil_to_native_quil",
-            request,
-            protoquil=protoquil,
-            timeout=self._timeout,
+            "quil_to_native_quil", request, protoquil=protoquil, timeout=self._timeout,
         ).asdict()
         nq_program = parse_program(response["quil"])
         nq_program.native_quil_metadata = response["metadata"]
@@ -101,7 +97,9 @@ class AbstractCompiler(ABC):
 
     def _connect(self) -> None:
         try:
-            quilc_version_dict = self._client.compiler_rpcq_request("get_version_info", timeout=self._timeout)
+            quilc_version_dict = self._client.compiler_rpcq_request(
+                "get_version_info", timeout=self._timeout
+            )
             _check_quilc_version(quilc_version_dict)
         except TimeoutError:
             raise QuilcNotRunning(
@@ -111,9 +109,7 @@ class AbstractCompiler(ABC):
             )
 
     @abstractmethod
-    def native_quil_to_executable(
-        self, nq_program: Program
-    ) -> QuantumExecutable:
+    def native_quil_to_executable(self, nq_program: Program) -> QuantumExecutable:
         """
         Compile a native quil program to a binary executable.
 
