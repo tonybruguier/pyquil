@@ -12,9 +12,8 @@ from pyquil.tests.utils import DummyCompiler
 
 
 def test_qc_expectation(client: Client, dummy_compiler: DummyCompiler):
-    device = NxDevice(nx.complete_graph(2))
     qc = QuantumComputer(
-        name="testy!", qam=QVM(client=client), device=device, compiler=dummy_compiler
+        name="testy!", qam=QVM(client=client), compiler=dummy_compiler
     )
 
     # bell state program
@@ -52,7 +51,7 @@ def test_qc_expectation(client: Client, dummy_compiler: DummyCompiler):
 def test_qc_expectation_larger_lattice(client: Client, dummy_compiler: DummyCompiler):
     device = NxDevice(nx.complete_graph(4))
     qc = QuantumComputer(
-        name="testy!", qam=QVM(client=client), device=device, compiler=dummy_compiler
+        name="testy!", qam=QVM(client=client), compiler=dummy_compiler
     )
 
     q0 = 2
@@ -147,7 +146,7 @@ def test_qc_calibration_2q(client: Client):
 def test_qc_joint_expectation(client: Client, dummy_compiler: DummyCompiler):
     device = NxDevice(nx.complete_graph(2))
     qc = QuantumComputer(
-        name="testy!", qam=QVM(client=client), device=device, compiler=dummy_compiler
+        name="testy!", qam=QVM(client=client), compiler=dummy_compiler
     )
 
     # |01> state program
@@ -215,7 +214,6 @@ def test_qc_expectation_on_qvm_that_requires_executable(
     qc = QuantumComputer(
         name="testy!",
         qam=QVM(client=client, requires_executable=True),
-        device=device,
         compiler=dummy_compiler,
     )
 

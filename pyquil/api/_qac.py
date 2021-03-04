@@ -45,14 +45,14 @@ QuantumExecutable = Union[QuiltBinaryExecutableResponse, PyQuilExecutableRespons
 class AbstractCompiler(ABC):
     """The abstract interface for a compiler."""
 
-    _target_device: TargetDevice
+    device: AbstractDevice
     _client: Optional[Client]
     _timeout: float
 
     def __init__(
         self, *, device: AbstractDevice, client: Optional[Client], timeout: float
     ) -> None:
-        self._target_device = TargetDevice(isa=device.get_isa().to_dict(), specs={})
+        self.device = device
         self._client = client or Client()
 
         if not self._client.quilc_url.startswith("tcp://"):
@@ -83,8 +83,9 @@ class AbstractCompiler(ABC):
         :return: Native quil and compiler metadata
         """
         self._connect()
+        target_device = TargetDevice(isa=self.device.get_isa().to_dict(), specs={})
         request = NativeQuilRequest(
-            quil=program.out(calibrations=False), target_device=self._target_device
+            quil=program.out(calibrations=False), target_device=target_device
         )
         response = self._client.compiler_rpcq_request(
             "quil_to_native_quil",

@@ -13,21 +13,18 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 ##############################################################################
+import itertools
 import re
 import socket
+import subprocess
 import warnings
+from contextlib import contextmanager
 from math import pi, log
 from typing import List, Dict, Tuple, Iterator, Mapping, Optional, Sequence, Set, Union, cast
-import itertools
-
-import subprocess
-from contextlib import contextmanager
 
 import networkx as nx
 import numpy as np
-from qcs_api_client.models import TranslateNativeQuilToEncryptedBinaryResponse
-from qcs_api_client.client import build_sync_client
-from rpcq.messages import QuiltBinaryExecutableResponse, PyQuilExecutableResponse
+from rpcq.messages import TargetDevice
 
 from pyquil.api import Client
 from pyquil.api._compiler import QPUCompiler, QVMCompiler
@@ -37,8 +34,8 @@ from pyquil.api._qam import QAM
 from pyquil.api._qpu import QPU
 from pyquil.api._quantum_processors import get_device
 from pyquil.api._qvm import QVM
-from pyquil.device._main import AbstractDevice, Device, NxDevice
 from pyquil.device._isa import gates_in_isa, ISA
+from pyquil.device._main import AbstractDevice, Device, NxDevice
 from pyquil.experiment._main import Experiment
 from pyquil.experiment._memory import merge_memory_map_lists
 from pyquil.experiment._result import ExperimentResult, bitstrings_to_expectations
@@ -57,7 +54,6 @@ class QuantumComputer:
         *,
         name: str,
         qam: QAM,
-        device: AbstractDevice,
         compiler: AbstractCompiler,
         symmetrize_readout: bool = False,
     ) -> None:
@@ -75,13 +71,11 @@ class QuantumComputer:
         :param name: A string identifying this particular quantum computer.
         :param qam: A quantum abstract machine which handles executing quantum programs. This
             dispatches to a QVM or QPU.
-        :param device: A collection of connected qubits and associated specs and topology.
         :param symmetrize_readout: Whether to apply readout error symmetrization. See
             :py:func:`run_symmetrized_readout` for a complete description.
         """
         self.name = name
         self.qam = qam
-        self.device = device
         self.compiler = compiler
 
         self.symmetrize_readout = symmetrize_readout
@@ -92,7 +86,7 @@ class QuantumComputer:
 
         See :py:func:`AbstractDevice.qubits` for more.
         """
-        return self.device.qubits()
+        return self.compiler.device.qubits()
 
     def qubit_topology(self) -> nx.graph:
         """
@@ -101,7 +95,7 @@ class QuantumComputer:
 
         See :py:func:`AbstractDevice.qubit_topology` for more.
         """
-        return self.device.qubit_topology()
+        return self.compiler.device.qubit_topology()
 
     def get_isa(self, oneq_type: str = "Xhalves", twoq_type: str = "CZ") -> ISA:
         """
@@ -112,7 +106,7 @@ class QuantumComputer:
         :param oneq_type: The family of one-qubit gates to target
         :param twoq_type: The family of two-qubit gates to target
         """
-        return self.device.get_isa(oneq_type=oneq_type, twoq_type=twoq_type)
+        return self.compiler.device.get_isa(oneq_type=oneq_type, twoq_type=twoq_type)
 
     @_record_call
     def run(
@@ -656,7 +650,6 @@ def _get_qvm_qc(
             device=device,
             requires_executable=requires_executable,
         ),
-        device=device,
         compiler=QVMCompiler(device=device, client=client, timeout=compiler_timeout),
     )
 
