@@ -5,6 +5,7 @@ lark
 qcs-api-client == 0.6.2.dev1088410470  # TODO: update before v3
 requests
 networkx >= 2.0.0
+qcs-api-client==0.6.2
 
 
 # rigetti packages

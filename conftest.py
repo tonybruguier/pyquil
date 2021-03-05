@@ -1,17 +1,24 @@
 import numpy as np
 import pytest
+import json
+import os
 from requests import RequestException
 
+from qcs_api_client.models import InstructionSetArchitecture
 from pyquil.api import (
     QVMConnection,
     QVMCompiler,
     Client,
     BenchmarkConnection,
 )
+from pyquil.device import QCSDevice
+from pyquil.device.graph import (
+    DEFAULT_1Q_GATES, DEFAULT_2Q_GATES, _transform_edge_operation_to_gates, _transform_qubit_operation_to_gates,
+)
 from pyquil.api._errors import UnknownApiError
 from pyquil.api._abstract_compiler import QuilcNotRunning, QuilcVersionMismatch
 from pyquil.api._qvm import QVMNotRunning, QVMVersionMismatch
-from pyquil.device import Device
+from pyquil.contrib.rpcq import CompilerISA, GateInfo
 from pyquil.gates import I
 from pyquil.paulis import sX
 from pyquil.quil import Program
@@ -19,16 +26,34 @@ from pyquil.tests.utils import DummyCompiler
 
 
 @pytest.fixture
-def isa_dict():
-    return {
-        "1Q": {"0": {"type": "Xhalves"}, "1": {}, "2": {}, "3": {"dead": True}},
-        "2Q": {
-            "0-1": {},
-            "1-2": {"type": "ISWAP"},
-            "0-2": {"type": "CPHASE"},
-            "0-3": {"dead": True},
+def compiler_isa():
+    gates_1q = []
+    for gate in DEFAULT_1Q_GATES:
+        gates_1q.extend(_transform_qubit_operation_to_gates(gate))
+    gates_2q = []
+    for gate in DEFAULT_2Q_GATES:
+        gates_2q.extend(_transform_edge_operation_to_gates(gate))
+    return CompilerISA.parse_obj({
+        "1Q": {
+            "0": {"id": 0, "gates": gates_1q},
+            "1": {"id": 1, "gates": gates_1q},
+            "2": {"id": 2, "gates": gates_1q},
+            "3": {"id": 3, "dead": True}
         },
-    }
+        "2Q": {
+            "0-1": {"ids": [0, 1], "gates": gates_2q},
+            "1-2": {"ids": [1, 2], "gates": [GateInfo(operator="ISWAP", parameters=[], arguments=["_", "_"])]},
+            "0-2": {"ids": [0, 2], "gates": [GateInfo(operator="CPHASE", parameters=["theta"], arguments=["_", "_"])]},
+            "0-3": {"ids": [0, 3], "dead": True},
+        },
+    })
+
+
+@pytest.fixture
+def qcs_aspen8_isa():
+    dir_path = os.path.dirname(os.path.realpath(__file__))
+    with open(f"{dir_path}/pyquil/tests/data/qcs-isa-Aspen-8.json") as f:
+        return InstructionSetArchitecture.from_dict(json.load(f))
 
 
 @pytest.fixture
@@ -117,7 +142,7 @@ def device_raw(isa_dict, noise_model_dict, specs_dict):
 
 @pytest.fixture
 def test_device(device_raw):
-    return Device("test_device", device_raw)
+    return QCSDevice("test_device", device_raw)
 
 
 @pytest.fixture(scope="session")
@@ -145,7 +170,7 @@ def compiler(test_device, client: Client):
 
 
 @pytest.fixture()
-def dummy_compiler(test_device: Device, client: Client):
+def dummy_compiler(test_device: QCSDevice, client: Client):
     return DummyCompiler(test_device, client)
 
 

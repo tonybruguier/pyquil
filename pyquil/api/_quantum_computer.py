@@ -24,6 +24,12 @@ from typing import List, Dict, Tuple, Iterator, Mapping, Optional, Sequence, Set
 
 import networkx as nx
 import numpy as np
+<<<<<<< HEAD
+=======
+from pyquil.contrib.rpcq import CompilerISA
+
+from qcs_api_client.operations.sync import list_quantum_processors
+>>>>>>> delete pyquil isa in favor of qcs and compiler distinct isas
 from qcs_api_client.models import ListQuantumProcessorsResponse
 from qcs_api_client.operations.sync import list_quantum_processors
 
@@ -35,8 +41,7 @@ from pyquil.api._qam import QAM
 from pyquil.api._qpu import QPU
 from pyquil.api._quantum_processors import get_device
 from pyquil.api._qvm import QVM
-from pyquil.device._isa import gates_in_isa, ISA
-from pyquil.device._main import AbstractDevice, Device, NxDevice
+from pyquil.device import AbstractDevice, QCSDevice, NxDevice, gates_in_isa
 from pyquil.experiment._main import Experiment
 from pyquil.experiment._memory import merge_memory_map_lists
 from pyquil.experiment._result import ExperimentResult, bitstrings_to_expectations
@@ -93,7 +98,7 @@ class QuantumComputer:
         """
         return self.compiler.device.qubit_topology()
 
-    def get_isa(self, oneq_type: str = "Xhalves", twoq_type: str = "CZ") -> ISA:
+    def get_isa(self) -> CompilerISA:
         """
         Return a target ISA for this QuantumComputer's device.
 
@@ -102,7 +107,7 @@ class QuantumComputer:
         :param oneq_type: The family of one-qubit gates to target
         :param twoq_type: The family of two-qubit gates to target
         """
-        return self.compiler.device.get_isa(oneq_type=oneq_type, twoq_type=twoq_type)
+        return self.compiler.device.get_isa()
 
     @_record_call
     def run(
@@ -725,7 +730,7 @@ def _get_unrestricted_qvm(
 def _get_qvm_based_on_real_device(
     client: Client,
     name: str,
-    device: Device,
+    device: QCSDevice,
     noisy: bool,
     qvm_type: str = "qvm",
     compiler_timeout: float = 10,

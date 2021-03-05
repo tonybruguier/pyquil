@@ -16,15 +16,20 @@
 
 from pyquil.api import Client
 from pyquil.api._client import _parse_error
-from pyquil.device import Device
+from pyquil.device import QCSDevice
 
 
+<<<<<<< HEAD
 # TODO(andrew): update to get new ISA and instantiate a device,
 #  using new endpoints (and client functions)
 def get_device(client: Client, processor_id: str) -> Device:
+=======
+# TODO(andrew): update to get new ISA and instantiate a device, using new endpoints (and client functions)
+def get_device(client: Client, processor_id: str) -> QCSDevice:
+>>>>>>> delete pyquil isa in favor of qcs and compiler distinct isas
     # STUB FOR NOW ################
     with client._http_client() as client:
         res = client.get(f"https://forest-server.qcs.rigetti.com/devices/{processor_id}")
         if res.status_code >= 400:
             raise _parse_error(res)
-    return Device(processor_id, res.json()["device"])
+    return QCSDevice(processor_id, res.json()["device"])
