@@ -169,7 +169,8 @@ programs run on this QVM.
         else:
             caddresses = {"ro": classical_addresses}
 
-        payload = qvm_run_payload(
+        buffers = qvm_run(
+            self.client,
             quil_program,
             caddresses,
             trials,
@@ -177,10 +178,6 @@ programs run on this QVM.
             self.gate_noise,
             self.random_seed,
         )
-        response = self.client.post_json(self.client.qvm_url, payload)
-        buffers: Dict[str, np.ndarray] = {
-            key: np.array(val) for key, val in response.json().items()
-        }
 
         if len(buffers) == 0:
             return []
@@ -544,7 +541,8 @@ http://pyquil.readthedocs.io/en/latest/noise_models.html#support-for-noisy-gates
 
         quil_program = self.augment_program_with_memory_values(quil_program)
 
-        payload = qvm_run_payload(
+        ram = qvm_run(
+            self._client,
             quil_program,
             classical_addresses,
             trials,
@@ -552,8 +550,6 @@ http://pyquil.readthedocs.io/en/latest/noise_models.html#support-for-noisy-gates
             self.gate_noise,
             self.random_seed,
         )
-        response = self._client.post_json(self._client.qvm_url, payload)
-        ram: Dict[str, np.ndarray] = {key: np.array(val) for key, val in response.json().items()}
         self._memory_results.update(ram)
 
         return self
@@ -639,6 +635,27 @@ def prepare_register_list(
         register_dict[k] = indices
 
     return register_dict
+
+
+def qvm_run(
+    client: Client,
+    quil_program: Program,
+    classical_addresses: Dict[str, Union[bool, Sequence[int]]],
+    trials: int,
+    measurement_noise: Optional[Tuple[float, float, float]],
+    gate_noise: Optional[Tuple[float, float, float]],
+    random_seed: Optional[int],
+) -> Dict[str, np.ndarray]:
+    payload = qvm_run_payload(
+        quil_program,
+        classical_addresses,
+        trials,
+        measurement_noise,
+        gate_noise,
+        random_seed,
+    )
+    response = client.post_json(client.qvm_url, payload)
+    return {key: np.array(val) for key, val in response.json().items()}
 
 
 def qvm_run_payload(
