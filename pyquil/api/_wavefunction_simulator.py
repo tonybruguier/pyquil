@@ -237,7 +237,7 @@ class WavefunctionSimulator:
 
 
 def run_and_measure_payload(
-    quil_program: Program, qubits: Sequence[int], trials: int, random_seed: int
+    quil_program: Program, qubits: Sequence[int], trials: int, random_seed: Optional[int]
 ) -> Dict[str, object]:
     """REST payload for :py:func:`ForestConnection._run_and_measure`"""
     if not quil_program:
@@ -265,7 +265,7 @@ def run_and_measure_payload(
     return payload
 
 
-def wavefunction_payload(quil_program: Program, random_seed: int) -> Dict[str, object]:
+def wavefunction_payload(quil_program: Program, random_seed: Optional[int]) -> Dict[str, object]:
     """REST payload for :py:func:`ForestConnection._wavefunction`"""
     if not isinstance(quil_program, Program):
         raise TypeError("quil_program must be a Quil program object")
@@ -282,7 +282,7 @@ def wavefunction_payload(quil_program: Program, random_seed: int) -> Dict[str, o
 
 
 def expectation_payload(
-    prep_prog: Program, operator_programs: Optional[Iterable[Program]], random_seed: int
+    prep_prog: Program, operator_programs: Optional[Iterable[Program]], random_seed: Optional[int]
 ) -> Dict[str, object]:
     """REST payload for :py:func:`ForestConnection._expectation`"""
     if operator_programs is None:

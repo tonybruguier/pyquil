@@ -20,7 +20,7 @@ import numpy as np
 from requests.exceptions import ConnectionError
 from rpcq.messages import PyQuilExecutableResponse
 
-from pyquil.api import Client
+from pyquil.api import Client, QuantumExecutable
 from pyquil.api._compiler import QVMCompiler, _extract_program_from_pyquil_executable_response
 from pyquil.api._error_reporting import _record_call
 from pyquil.api._qam import QAM
@@ -66,8 +66,8 @@ class QVMConnection(object):
         self,
         client: Optional[Client] = None,
         device: Optional[Device] = None,
-        gate_noise: Optional[List[float]] = None,
-        measurement_noise: Optional[List[float]] = None,
+        gate_noise: Optional[Tuple[float, float, float]] = None,
+        measurement_noise: Optional[Tuple[float, float, float]] = None,
         random_seed: Optional[int] = None,
     ):
         """
@@ -77,9 +77,9 @@ class QVMConnection(object):
         :param client: Optional QCS client. If none is provided, a default client will be created.
         :param device: The optional device, from which noise will be added by default to all
             programs run on this instance.
-        :param gate_noise: A list of three numbers [Px, Py, Pz] indicating the probability of an X,
+        :param gate_noise: A tuple of three numbers [Px, Py, Pz] indicating the probability of an X,
             Y, or Z gate getting applied to each qubit after a gate application or reset.
-        :param measurement_noise: A list of three numbers [Px, Py, Pz] indicating the probability of
+        :param measurement_noise: A tuple of three numbers [Px, Py, Pz] indicating the probability of
             an X, Y, or Z gate getting applied before a a measurement.
         :param random_seed: A seed for the QVM's random number generators. Either None (for an
             automatically generated seed) or a non-negative integer.
@@ -401,15 +401,15 @@ programs run on this QVM.
 
 
 class QVM(QAM):
+
     @_record_call
     def __init__(
         self,
         client: Optional[Client] = None,
         noise_model: Optional[NoiseModel] = None,
-        gate_noise: Optional[List[float]] = None,
-        measurement_noise: Optional[List[float]] = None,
+        gate_noise: Optional[Tuple[float, float, float]] = None,
+        measurement_noise: Optional[Tuple[float, float, float]] = None,
         random_seed: Optional[int] = None,
-        requires_executable: bool = False,
     ) -> None:
         """
         A virtual machine that classically emulates the execution of Quil programs.
@@ -417,17 +417,14 @@ class QVM(QAM):
         :param client: Optional QCS client. If none is provided, a default client will be created.
         :param noise_model: A noise model that describes noise to apply when emulating a program's
             execution.
-        :param gate_noise: A list of three numbers [Px, Py, Pz] indicating the probability of an X,
+        :param gate_noise: A tuple of three numbers [Px, Py, Pz] indicating the probability of an X,
            Y, or Z gate getting applied to each qubit after a gate application or reset. The
            default value of None indicates no noise.
-        :param measurement_noise: A list of three numbers [Px, Py, Pz] indicating the probability
+        :param measurement_noise: A tuple of three numbers [Px, Py, Pz] indicating the probability
             of an X, Y, or Z gate getting applied before a measurement. The default value of
             None indicates no noise.
         :param random_seed: A seed for the QVM's random number generators. Either None (for an
             automatically generated seed) or a non-negative integer.
-        :param requires_executable: Whether this QVM will refuse to run a :py:class:`Program` and
-            only accept the result of :py:func:`compiler.native_quil_to_executable`. Setting this
-            to True better emulates the behavior of a QPU.
         """
         super().__init__(client)
 
@@ -457,7 +454,6 @@ http://pyquil.readthedocs.io/en/latest/noise_models.html#support-for-noisy-gates
         else:
             raise TypeError("random_seed should be None or a non-negative int")
 
-        self.requires_executable = requires_executable
         self.connect()
 
     def connect(self) -> None:
@@ -477,44 +473,25 @@ http://pyquil.readthedocs.io/en/latest/noise_models.html#support-for-noisy-gates
         return self._client.qvm_version()
 
     @_record_call
-    def load(self, executable: Union[Program, PyQuilExecutableResponse]) -> "QVM":
+    def load(self, executable: QuantumExecutable) -> "QVM":
         """
         Initialize a QAM and load a program to be executed with a call to :py:func:`run`.
 
-        If ``QVM.requires_executable`` is set to ``True``, this function will only load
-        :py:class:`PyQuilExecutableResponse` executables. This more closely follows the behavior
-        of :py:class:`QPU`. However, the quantum simulator doesn't *actually* need a compiled
-        binary executable, so if this flag is set to ``False`` we also accept :py:class:`Program`
-        objects.
-
-        :param executable: An executable. See the above note for acceptable types.
+        :param executable: A compiled executable.
         """
-        if self.requires_executable:
-            if isinstance(executable, PyQuilExecutableResponse):
-                executable = _extract_program_from_pyquil_executable_response(executable)
-            else:
-                raise TypeError(
-                    "`executable` argument must be a `PyQuilExecutableResponse`. Make "
-                    "sure you have explicitly compiled your program via `qc.compile` "
-                    "or `qc.compiler.native_quil_to_executable(...)` for more "
-                    "fine-grained control. This explicit step is required for running "
-                    "on a QPU."
-                )
-        else:
-            if isinstance(executable, PyQuilExecutableResponse):
-                executable = _extract_program_from_pyquil_executable_response(executable)
-            elif isinstance(executable, Program):
-                pass
-            else:
-                raise TypeError(
-                    "`executable` argument must be a `PyQuilExecutableResponse` or a "
-                    "`Program`. You provided {}".format(type(executable))
-                )
+        if not isinstance(executable, PyQuilExecutableResponse):
+            raise TypeError(
+                "`executable` argument must be a `PyQuilExecutableResponse`. Make "
+                "sure you have explicitly compiled your program via `qc.compile` "
+                "or `qc.compiler.native_quil_to_executable(...)` for more "
+                "fine-grained control."
+            )
 
-        qvm = cast("QVM", super().load(executable))
-        for region in executable.declarations.keys():
-            self._memory_results[region] = np.ndarray((executable.num_shots, 0), dtype=np.int64)
-        return qvm
+        super().load(executable)
+        program = _extract_program_from_pyquil_executable_response(executable)
+        for region in program.declarations.keys():
+            self._memory_results[region] = np.ndarray((program.num_shots, 0), dtype=np.int64)
+        return self
 
     @_record_call
     def run(self) -> "QVM":
@@ -524,15 +501,10 @@ http://pyquil.readthedocs.io/en/latest/noise_models.html#support-for-noisy-gates
 
         :return: An array of bitstrings of shape ``(trials, len(classical_addresses))``
         """
-
         super().run()
+        assert isinstance(self.executable, PyQuilExecutableResponse)
 
-        if not isinstance(self._executable, Program):
-            # This should really never happen
-            # unless a user monkeys with `self.status` and `self._executable`.
-            raise ValueError("Please `load` an appropriate executable.")
-
-        quil_program = self._executable
+        quil_program = _extract_program_from_pyquil_executable_response(self.executable)
         trials = quil_program.num_shots
         classical_addresses = get_classical_addresses_from_program(quil_program)
 
@@ -571,20 +543,20 @@ TYPE_MULTISHOT_MEASURE = "multishot-measure"
 TYPE_WAVEFUNCTION = "wavefunction"
 
 
-def validate_noise_probabilities(noise_parameter: Optional[List[float]]) -> None:
+def validate_noise_probabilities(noise_parameter: Optional[Tuple[float, float, float]]) -> None:
     """
     Is noise_parameter a valid specification of noise probabilities for depolarizing noise?
 
-    :param list noise_parameter: List of noise parameter values to be validated.
+    :param tuple noise_parameter: Tuple of 3 noise parameter values to be validated.
     """
     if not noise_parameter:
         return
-    if not isinstance(noise_parameter, list):
-        raise TypeError("noise_parameter must be a list")
+    if not isinstance(noise_parameter, tuple):
+        raise TypeError("noise_parameter must be a tuple")
     if any([not isinstance(value, float) for value in noise_parameter]):
         raise TypeError("noise_parameter values should all be floats")
     if len(noise_parameter) != 3:
-        raise ValueError("noise_parameter lists must be of length 3")
+        raise ValueError("noise_parameter tuple must be of length 3")
     if sum(noise_parameter) > 1 or sum(noise_parameter) < 0:
         raise ValueError("sum of entries in noise_parameter must be between 0 and 1 (inclusive)")
     if any([value < 0 for value in noise_parameter]):
@@ -605,7 +577,7 @@ def validate_qubit_list(qubit_list: Sequence[int]) -> Sequence[int]:
 
 
 def prepare_register_list(
-    register_dict: Dict[str, Union[bool, Sequence[int]]]
+    register_dict: Mapping[str, Union[bool, Sequence[int]]]
 ) -> Dict[str, Union[bool, Sequence[int]]]:
     """
     Canonicalize classical addresses for the payload and ready MemoryReference instances
@@ -640,19 +612,14 @@ def prepare_register_list(
 def qvm_run(
     client: Client,
     quil_program: Program,
-    classical_addresses: Dict[str, Union[bool, Sequence[int]]],
+    classical_addresses: Mapping[str, Union[bool, Sequence[int]]],
     trials: int,
     measurement_noise: Optional[Tuple[float, float, float]],
     gate_noise: Optional[Tuple[float, float, float]],
     random_seed: Optional[int],
 ) -> Dict[str, np.ndarray]:
     payload = qvm_run_payload(
-        quil_program,
-        classical_addresses,
-        trials,
-        measurement_noise,
-        gate_noise,
-        random_seed,
+        quil_program, classical_addresses, trials, measurement_noise, gate_noise, random_seed,
     )
     response = client.post_json(client.qvm_url, payload)
     return {key: np.array(val) for key, val in response.json().items()}
@@ -660,7 +627,7 @@ def qvm_run(
 
 def qvm_run_payload(
     quil_program: Program,
-    classical_addresses: Dict[str, Union[bool, Sequence[int]]],
+    classical_addresses: Mapping[str, Union[bool, Sequence[int]]],
     trials: int,
     measurement_noise: Optional[Tuple[float, float, float]],
     gate_noise: Optional[Tuple[float, float, float]],

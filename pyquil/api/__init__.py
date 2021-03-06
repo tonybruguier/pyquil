@@ -16,6 +16,8 @@
 """
 Module for facilitating connections to the QVM / QPU.
 """
+# TODO(andrew): update change log
+
 import warnings
 from typing import Any
 

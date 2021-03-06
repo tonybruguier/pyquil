@@ -194,26 +194,13 @@ class QuantumComputer:
         :return: A list of ``ExperimentResult`` objects containing the statistics gathered
             according to the specifications of the ``Experiment``.
         """
-        executable = self.qam._executable
+        executable = self.qam.executable
         # if this experiment was the last experiment run on this QuantumComputer,
         # then use the executable that is already loaded into the object
-        if executable is None or self.qam._experiment != experiment:
+        if executable is None or self.qam.experiment != experiment:
             experiment_program = experiment.generate_experiment_program()
             executable = self.compile(experiment_program)
-            self.qam._experiment = experiment
-        elif (
-            isinstance(self.qam, QVM)
-            and isinstance(executable, Program)
-            and self.qam.requires_executable
-        ):
-            # HACK HACK HACK. If QVM.requires_executable is true, then QVM.load will raise an
-            # exception if the executable is not a PyQuilExecutableResponse. However, if it *is* a
-            # PyQuilExecutableResponse, QVM.load will unpack the underlying Program object and pass
-            # that along to QAM.load, which saves it in self._executable. Since we reuse the saved
-            # executable here as long as the experiment hasn't changed, we need to re-compile it
-            # into a PyQuilExecutableResponse, otherwise the call to self.run below will fail when
-            # it attempts to load this non-binary executable.
-            executable = self.compiler.native_quil_to_executable(executable)
+            self.qam.experiment = experiment
 
         if memory_map is None:
             memory_map = {}
@@ -514,8 +501,9 @@ def list_quantum_computers(
     client = client or Client()
     qc_names: List[str] = []
     if qpus:
-        qcs: ListQuantumProcessorsResponse = client.qcs_request(
-            list_quantum_processors, page_size=100
+        qcs: ListQuantumProcessorsResponse = cast(
+            ListQuantumProcessorsResponse,
+            client.qcs_request(list_quantum_processors, page_size=100),
         )
         qc_names += [qc.id for qc in qcs.quantum_processors]
 
@@ -601,10 +589,9 @@ def _get_qvm_or_pyqvm(
     qvm_type: str,
     noise_model: Optional[NoiseModel] = None,
     device: Optional[AbstractDevice] = None,
-    requires_executable: bool = False,
 ) -> Union[QVM, PyQVM]:
     if qvm_type == "qvm":
-        return QVM(client=client, noise_model=noise_model, requires_executable=requires_executable)
+        return QVM(client=client, noise_model=noise_model)
     elif qvm_type == "pyqvm":
         assert device is not None
         return PyQVM(n_qubits=device.qubit_topology().number_of_nodes())
@@ -618,7 +605,6 @@ def _get_qvm_qc(
     qvm_type: str,
     device: AbstractDevice,
     noise_model: Optional[NoiseModel] = None,
-    requires_executable: bool = False,
     compiler_timeout: float = 10,
 ) -> QuantumComputer:
     """Construct a QuantumComputer backed by a QVM.
@@ -630,9 +616,6 @@ def _get_qvm_qc(
     :param qvm_type: The type of QVM. Either qvm or pyqvm.
     :param device: A device following the AbstractDevice interface.
     :param noise_model: An optional noise model
-    :param requires_executable: Whether this QVM will refuse to run a :py:class:`Program` and
-        only accept the result of :py:func:`compiler.native_quil_to_executable`. Setting this
-        to True better emulates the behavior of a QPU.
     :return: A QuantumComputer backed by a QVM with the above options.
     """
 
@@ -643,7 +626,6 @@ def _get_qvm_qc(
             qvm_type=qvm_type,
             noise_model=noise_model,
             device=device,
-            requires_executable=requires_executable,
         ),
         compiler=QVMCompiler(device=device, client=client, timeout=compiler_timeout),
     )
@@ -654,7 +636,6 @@ def _get_qvm_with_topology(
     name: str,
     topology: nx.Graph,
     noisy: bool = False,
-    requires_executable: bool = True,
     qvm_type: str = "qvm",
     compiler_timeout: float = 10,
 ) -> QuantumComputer:
@@ -667,9 +648,6 @@ def _get_qvm_with_topology(
     :param noisy: Whether to include a generic noise model. If you want more control over
         the noise model, please construct your own :py:class:`NoiseModel` and use
         :py:func:`_get_qvm_qc` instead of this function.
-    :param requires_executable: Whether this QVM will refuse to run a :py:class:`Program` and
-        only accept the result of :py:func:`compiler.native_quil_to_executable`. Setting this
-        to True better emulates the behavior of a QPU.
     :param qvm_type: The type of QVM. Either 'qvm' or 'pyqvm'.
     :return: A pre-configured QuantumComputer
     """
@@ -687,7 +665,6 @@ def _get_qvm_with_topology(
         qvm_type=qvm_type,
         device=device,
         noise_model=noise_model,
-        requires_executable=requires_executable,
         compiler_timeout=compiler_timeout,
     )
 
@@ -713,7 +690,6 @@ def _get_9q_square_qvm(
         name=name,
         topology=topology,
         noisy=noisy,
-        requires_executable=True,
         qvm_type=qvm_type,
         compiler_timeout=compiler_timeout,
     )
@@ -745,7 +721,6 @@ def _get_unrestricted_qvm(
         name=name,
         topology=topology,
         noisy=noisy,
-        requires_executable=False,
         qvm_type=qvm_type,
         compiler_timeout=compiler_timeout,
     )
@@ -780,7 +755,6 @@ def _get_qvm_based_on_real_device(
         name=name,
         device=device,
         noise_model=noise_model,
-        requires_executable=True,
         qvm_type=qvm_type,
         compiler_timeout=compiler_timeout,
     )

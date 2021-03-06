@@ -2,7 +2,7 @@ import re
 from contextlib import contextmanager
 from datetime import datetime
 from json.decoder import JSONDecodeError
-from typing import Optional, Any, Callable
+from typing import Optional, Any, Callable, Iterator, cast
 
 import httpx
 import rpcq
@@ -29,7 +29,7 @@ class Client:
 
     _http: Optional[httpx.Client]
     _config: QCSClientConfiguration
-    _config_reloader: Callable[[], QCSClientConfiguration]
+    _has_default_config: bool
     _engagement: Optional[EngagementWithCredentials] = None
 
     def __init__(
@@ -45,8 +45,8 @@ class Client:
                ``configuration``.
         :param configuration: QCS configuration.
         """
-        self._config_reloader = lambda: configuration or QCSClientConfiguration.load()
-        self._config = self._config_reloader()
+        self._config = configuration or QCSClientConfiguration.load()
+        self._has_default_config = configuration is None
         self._http = http
 
     def post_json(self, url: str, json: Any, timeout: float = 5) -> httpx.Response:
@@ -59,13 +59,13 @@ class Client:
         :return: HTTP response corresponding to request.
         """
         logger.debug("Sending POST request to %s. Body: %s", url, json)
-        with self._http_client() as http:
+        with self._http_client() as http:  # type: httpx.Client
             res = http.post(url, json=json, timeout=timeout)
             if res.status_code >= 400:
                 raise _parse_error(res)
         return res
 
-    def qcs_request(self, request_fn: Callable[..., Response], **kwargs: Any) -> Any:
+    def qcs_request(self, request_fn: Callable[..., Response[Any]], **kwargs: Any) -> Any:
         """
         Execute a QCS request.
 
@@ -73,11 +73,11 @@ class Client:
         :param kwargs: Arguments to pass to request function.
         :return: HTTP response corresponding to request.
         """
-        with self._http_client() as http:
+        with self._http_client() as http:  # type: httpx.Client
             return request_fn(client=http, **kwargs).parsed
 
     def compiler_rpcq_request(
-        self, method_name: str, *args: Any, timeout: Optional[float] = None, **kwargs
+        self, method_name: str, *args: Any, timeout: Optional[float] = None, **kwargs: Any
     ) -> Any:
         """
         Execute a remote function against the Quil compiler.
@@ -88,7 +88,7 @@ class Client:
         :param kwargs: Keyword arguments that will be passed to the remote function.
         :return: Result from remote function.
         """
-        return self._rpcq_request(self.quilc_url, method_name, *args, timeout=timeout, **kwargs,)
+        return self._rpcq_request(self.quilc_url, method_name, *args, timeout=timeout, **kwargs)
 
     def processor_rpcq_request(
         self,
@@ -96,7 +96,7 @@ class Client:
         method_name: str,
         *args: Any,
         timeout: Optional[float] = None,
-        **kwargs,
+        **kwargs: Any,
     ) -> Any:
         """
         Execute a remote function against a processor endpoint. If there is no current engagement, or if it is
@@ -109,8 +109,11 @@ class Client:
         :param kwargs: Keyword arguments that will be passed to the remote function.
         :return: Result from remote function.
         """
+        # TODO(andrew): handle multiple engagements at once (per processor)
         if not _engagement_valid(processor_id, self._engagement):
             self._engagement = self._create_engagement(processor_id)
+
+        assert self._engagement is not None
 
         return self._rpcq_request(
             self._engagement.address,
@@ -128,19 +131,20 @@ class Client:
         *args: Any,
         timeout: Optional[float] = None,
         auth_config: Optional[ClientAuthConfig] = None,
-        **kwargs,
+        **kwargs: Any,
     ) -> Any:
         client = rpcq.Client(endpoint, auth_config=auth_config)
-        response = client.call(method_name, *args, rpc_timeout=timeout, **kwargs)
-        client.close()
+        response = client.call(method_name, *args, rpc_timeout=timeout, **kwargs)  # type: ignore
+        client.close()  # type: ignore
         return response
 
     def reset(self) -> None:
         """
-        Clears current engagement and reloads configuration (based on value passed into constructor).
+        Clears current engagement and reloads configuration (if not overridden in constructor).
         """
         self._engagement = None
-        self._config = self._config_reloader()
+        if self._has_default_config:
+            self._config = QCSClientConfiguration.load()
 
     @property
     def qvm_url(self) -> str:
@@ -169,16 +173,20 @@ class Client:
         return qvm_version
 
     @contextmanager
-    def _http_client(self) -> httpx.Client:
+    def _http_client(self) -> Iterator[httpx.Client]:
         if self._http is None:
-            with build_sync_client(configuration=self._config) as client:
+            with build_sync_client(configuration=self._config) as client:  # type: httpx.Client
                 yield client
         else:
             yield self._http
 
     def _create_engagement(self, processor_id: str) -> EngagementWithCredentials:
-        return self.qcs_request(
-            create_engagement, json_body=CreateEngagementRequest(quantum_processor_id=processor_id)
+        return cast(
+            EngagementWithCredentials,
+            self.qcs_request(
+                create_engagement,
+                json_body=CreateEngagementRequest(quantum_processor_id=processor_id),
+            ),
         )
 
 
@@ -198,7 +206,7 @@ def _engagement_valid(processor_id: str, engagement: Optional[EngagementWithCred
     )
 
 
-def _to_auth_config(credentials: EngagementCredentials):
+def _to_auth_config(credentials: EngagementCredentials) -> ClientAuthConfig:
     return rpcq.ClientAuthConfig(
         client_secret_key=credentials.client_secret.encode(),
         client_public_key=credentials.client_public.encode(),

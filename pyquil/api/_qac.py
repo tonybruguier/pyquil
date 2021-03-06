@@ -16,6 +16,7 @@
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional, Sequence, Union
 
+from qcs_api_client.models import TranslateNativeQuilToEncryptedBinaryResponse
 from rpcq.messages import (
     NativeQuilRequest,
     TargetDevice,
@@ -41,14 +42,14 @@ class QuilcNotRunning(Exception):
     pass
 
 
-QuantumExecutable = Union[QuiltBinaryExecutableResponse, PyQuilExecutableResponse]
+QuantumExecutable = Union[TranslateNativeQuilToEncryptedBinaryResponse, PyQuilExecutableResponse]
 
 
 class AbstractCompiler(ABC):
     """The abstract interface for a compiler."""
 
     device: AbstractDevice
-    _client: Optional[Client]
+    _client: Client
     _timeout: float
 
     def __init__(self, *, device: AbstractDevice, client: Optional[Client], timeout: float) -> None:

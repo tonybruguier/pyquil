@@ -17,6 +17,7 @@ from pyquil.tests.utils import api_fixture_path
 # QPUCompiler
 # QVMCompiler
 
+
 def simple_program():
     program = Program()
     readout = program.declare("ro", "BIT", 3)

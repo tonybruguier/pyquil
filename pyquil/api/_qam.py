@@ -46,7 +46,8 @@ class QAM(ABC):
     status: str
     _client: Client
     _variables_shim: Dict[ParameterAref, Union[int, float]]
-    _executable: TranslateNativeQuilToEncryptedBinaryResponse
+    executable: Optional[QuantumExecutable]
+    experiment: Optional[Experiment] = None
     _memory_results: Dict[str, np.ndarray]
 
     @_record_call
@@ -67,7 +68,7 @@ class QAM(ABC):
         assert self.status in ["connected", "done", "loaded"]
 
         self._variables_shim = {}
-        self._executable = executable
+        self.executable = executable
         self._memory_results = defaultdict(lambda: None)
         self.status = "loaded"
         return self
@@ -110,6 +111,7 @@ class QAM(ABC):
         """
         Reset the program counter on a QAM and run its loaded Quil program.
         """
+        assert self.executable is not None
         self.status = "running"
 
         return self
@@ -166,8 +168,8 @@ class QAM(ABC):
         """
         self._client.reset()
         self._variables_shim = {}
-        self._executable = None
+        self.executable = None
         self._memory_results = defaultdict(lambda: None)
-        self._experiment: Optional[Experiment] = None
+        self.experiment = None
 
         self.status = "connected"

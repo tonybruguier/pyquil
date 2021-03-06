@@ -140,7 +140,7 @@ def test_measure_bitstrings(client: Client):
     dummy_compiler = DummyCompiler(device=device, client=client)
     qc_pyqvm = QuantumComputer(name="testy!", qam=PyQVM(n_qubits=2), compiler=dummy_compiler)
     qc_forest = QuantumComputer(
-        name="testy!", qam=QVM(client=client, gate_noise=[0.00] * 3), compiler=dummy_compiler,
+        name="testy!", qam=QVM(client=client, gate_noise=(0.00, 0.00, 0.00)), compiler=dummy_compiler,
     )
     prog = Program(I(0), I(1))
     meas_qubits = [0, 1]
@@ -200,10 +200,11 @@ def test_run(client: Client):
     device = NxDevice(nx.complete_graph(3))
     qc = QuantumComputer(
         name="testy!",
-        qam=QVM(client=client, gate_noise=[0.01] * 3),
+        qam=QVM(client=client, gate_noise=(0.01, 0.01, 0.01)),
         compiler=DummyCompiler(device=device, client=client),
     )
-    bitstrings = qc.run(
+    # TODO(andrew): should run call compile for users?
+    bitstrings = qc.run(qc.compile(
         Program(
             Declare("ro", "BIT", 3),
             H(0),
@@ -213,7 +214,7 @@ def test_run(client: Client):
             MEASURE(1, MemoryReference("ro", 1)),
             MEASURE(2, MemoryReference("ro", 2)),
         ).wrap_in_numshots_loop(1000)
-    )
+    ))
 
     assert bitstrings.shape == (1000, 3)
     parity = np.sum(bitstrings, axis=1) % 3
@@ -268,7 +269,7 @@ def test_readout_symmetrization(client: Client):
     )
     prog.wrap_in_numshots_loop(1000)
 
-    bs1 = qc.run(prog)
+    bs1 = qc.run(qc.compile(prog))
     avg0_us = np.mean(bs1[:, 0])
     avg1_us = 1 - np.mean(bs1[:, 1])
     diff_us = avg1_us - avg0_us
@@ -508,12 +509,12 @@ def test_run_with_parameters(client: Client):
         name="testy!", qam=QVM(client=client), compiler=DummyCompiler(device=device, client=client)
     )
     bitstrings = qc.run(
-        executable=Program(
+        executable=qc.compile(Program(
             Declare(name="theta", memory_type="REAL"),
             Declare(name="ro", memory_type="BIT"),
             RX(MemoryReference("theta"), 0),
             MEASURE(0, MemoryReference("ro")),
-        ).wrap_in_numshots_loop(1000),
+        ).wrap_in_numshots_loop(1000)),
         memory_map={"theta": [np.pi]},
     )
 
@@ -532,11 +533,11 @@ def test_reset(client: Client):
         RX(MemoryReference("theta"), 0),
         MEASURE(0, MemoryReference("ro")),
     ).wrap_in_numshots_loop(1000)
-    qc.run(executable=p, memory_map={"theta": [np.pi]})
+    qc.run(executable=qc.compile(p), memory_map={"theta": [np.pi]})
 
     aref = ParameterAref(name="theta", index=0)
     assert qc.qam._variables_shim[aref] == np.pi
-    assert qc.qam._executable == p
+    assert qc.qam.executable == qc.compile(p)
     assert qc.qam._memory_results["ro"].shape == (1000, 1)
     assert all([bit == 1 for bit in qc.qam._memory_results["ro"]])
     assert qc.qam.status == "done"
@@ -544,7 +545,7 @@ def test_reset(client: Client):
     qc.reset()
 
     assert qc.qam._variables_shim == {}
-    assert qc.qam._executable is None
+    assert qc.qam.executable is None
     assert qc.qam._memory_results["ro"] is None
     assert qc.qam.status == "connected"
 

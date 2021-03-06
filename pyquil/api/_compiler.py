@@ -14,8 +14,12 @@
 #    limitations under the License.
 ##############################################################################
 import logging
-from typing import Dict, Any, Optional, List, Tuple
+from typing import Dict, Any, Optional, List, Tuple, cast
 
+from qcs_api_client.models import (
+    TranslateNativeQuilToEncryptedBinaryResponse,
+    TranslateNativeQuilToEncryptedBinaryResponseMemoryDescriptors,
+)
 from qcs_api_client.models.get_quilt_calibrations_response import GetQuiltCalibrationsResponse
 from qcs_api_client.models.translate_native_quil_to_encrypted_binary_request import (
     TranslateNativeQuilToEncryptedBinaryRequest,
@@ -88,7 +92,9 @@ def _extract_program_from_pyquil_executable_response(response: PyQuilExecutableR
     return p
 
 
-def _collect_memory_descriptors(program: Program) -> Dict[str, ParameterSpec]:
+def _collect_memory_descriptors(
+    program: Program,
+) -> TranslateNativeQuilToEncryptedBinaryResponseMemoryDescriptors:
     """Collect Declare instructions that are important for building the patch table.
 
     This is secretly stored on BinaryExecutableResponse. We're careful to make sure
@@ -96,6 +102,9 @@ def _collect_memory_descriptors(program: Program) -> Dict[str, ParameterSpec]:
 
     :return: A dictionary of variable names to specs about the declared region.
     """
+
+    # TODO(andrew): follow-up with Eric, as TranslateNativeQuilToEncryptedBinaryResponseMemoryDescriptors
+    # may just become a dictionary anyway
     return {
         instr.name: ParameterSpec(type=instr.memory_type, length=instr.memory_size)
         for instr in program
@@ -190,33 +199,37 @@ class QPUCompiler(AbstractCompiler):
         )
 
         # TODO(andrew): timeout?
-        response = self._client.qcs_request(
-            translate_native_quil_to_encrypted_binary,
-            quantum_processor_id=self.processor_id,
-            json_body=request,
+        # TODO(andrew): custom class for encrypted binary
+        response = cast(
+            TranslateNativeQuilToEncryptedBinaryResponse,
+            self._client.qcs_request(
+                translate_native_quil_to_encrypted_binary,
+                quantum_processor_id=self.processor_id,
+                json_body=request,
+            ),
         )
 
         response.recalculation_table = arithmetic_response.recalculation_table  # type: ignore
-        response.memory_descriptors = _collect_memory_descriptors(nq_program)
+        response.memory_descriptors = _collect_memory_descriptors(
+            nq_program
+        )
 
         # Convert strings to MemoryReference for downstream processing.
+        # TODO(andrew): rework this based on new response shape
         response.ro_sources = [(parse_mref(mref), source) for mref, source in response.ro_sources]
-
-        # TODO (kalzoo): this is a temporary workaround to migrate memory location parsing from
-        # the client side (where it was pre-quilt) to the service side. In some cases, the service
-        # won't return ro_sources, and so we can fall back to parsing the change on the client side.
-        if response.ro_sources == []:
-            response.ro_sources = _collect_classical_memory_write_locations(nq_program)
 
         return response
 
     def _get_calibration_program(self) -> Program:
-        response: GetQuiltCalibrationsResponse = self._client.qcs_request(
-            get_quilt_calibrations, quantum_processor_id=self.processor_id
+        response = cast(
+            GetQuiltCalibrationsResponse,
+            self._client.qcs_request(
+                get_quilt_calibrations, quantum_processor_id=self.processor_id
+            ),
         )
         return parse_program(response.quilt)
 
-    @_record_call
+    @_record_call  # type: ignore
     @property
     def calibration_program(self) -> Program:
         """
@@ -265,6 +278,7 @@ class QVMCompiler(AbstractCompiler):
 
     @_record_call
     def native_quil_to_executable(self, nq_program: Program) -> QuantumExecutable:
+        # TODO(andrew): custom class for this that's not a "response"
         return PyQuilExecutableResponse(
             program=nq_program.out(),
             attributes=_extract_attribute_dictionary_from_program(nq_program),

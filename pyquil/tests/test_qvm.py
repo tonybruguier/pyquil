@@ -1,11 +1,10 @@
 import numpy as np
 import pytest
-
 from rpcq.messages import PyQuilExecutableResponse
 
 from pyquil import Program
 from pyquil.api import QVM, Client
-from pyquil.api._compiler import _extract_program_from_pyquil_executable_response
+from pyquil.api._compiler import _extract_program_from_pyquil_executable_response, QVMCompiler
 from pyquil.api._errors import QVMError
 from pyquil.api._qvm import validate_noise_probabilities, validate_qubit_list, prepare_register_list
 from pyquil.gates import MEASURE, X, CNOT, H
@@ -16,7 +15,7 @@ def test_qvm__default_client():
     qvm = QVM()
     p = Program(Declare("ro", "BIT"), X(0), MEASURE(0, MemoryReference("ro")))
     p.wrap_in_numshots_loop(1000)
-    qvm.load(p)
+    qvm.load(PyQuilExecutableResponse(program=p.out(), attributes={"num_shots": 1000}))
     qvm.run()
     qvm.wait()
     bitstrings = qvm.read_memory(region_name="ro")
@@ -24,7 +23,7 @@ def test_qvm__default_client():
 
 
 def test_qvm_run_pqer(client: Client):
-    qvm = QVM(client=client, gate_noise=[0.01] * 3)
+    qvm = QVM(client=client, gate_noise=(0.01, 0.01, 0.01))
     p = Program(Declare("ro", "BIT"), X(0), MEASURE(0, MemoryReference("ro")))
     p.wrap_in_numshots_loop(1000)
     nq = PyQuilExecutableResponse(program=p.out(), attributes={"num_shots": 1000})
@@ -37,10 +36,10 @@ def test_qvm_run_pqer(client: Client):
 
 
 def test_qvm_run_just_program(client: Client):
-    qvm = QVM(client=client, gate_noise=[0.01] * 3)
+    qvm = QVM(client=client, gate_noise=(0.01, 0.01, 0.01))
     p = Program(Declare("ro", "BIT"), X(0), MEASURE(0, MemoryReference("ro")))
     p.wrap_in_numshots_loop(1000)
-    qvm.load(p)
+    qvm.load(PyQuilExecutableResponse(program=p.out(), attributes={"num_shots": 1000}))
     qvm.run()
     qvm.wait()
     bitstrings = qvm.read_memory(region_name="ro")
@@ -49,7 +48,7 @@ def test_qvm_run_just_program(client: Client):
 
 
 def test_qvm_run_only_pqer(client: Client):
-    qvm = QVM(client=client, gate_noise=[0.01] * 3, requires_executable=True)
+    qvm = QVM(client=client, gate_noise=(0.01, 0.01, 0.01))
     p = Program(Declare("ro", "BIT"), X(0), MEASURE(0, MemoryReference("ro")))
     p.wrap_in_numshots_loop(1000)
 
@@ -146,17 +145,18 @@ def test_qvm_version(client: Client):
     assert is_a_version_string(version)
 
 
+# TODO(andrew): add match= to pytest.raises calls
 def test_validate_noise_probabilities():
     with pytest.raises(TypeError):
         validate_noise_probabilities(1)
     with pytest.raises(TypeError):
         validate_noise_probabilities(["a", "b", "c"])
     with pytest.raises(ValueError):
-        validate_noise_probabilities([0.0, 0.0, 0.0, 0.0])
+        validate_noise_probabilities((0.0, 0.0, 0.0, 0.0))
     with pytest.raises(ValueError):
-        validate_noise_probabilities([0.5, 0.5, 0.5])
+        validate_noise_probabilities((0.5, 0.5, 0.5))
     with pytest.raises(ValueError):
-        validate_noise_probabilities([-0.5, -0.5, -0.5])
+        validate_noise_probabilities((-0.5, -0.5, -0.5))
 
 
 def test_validate_qubit_list():
