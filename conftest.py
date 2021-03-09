@@ -130,19 +130,8 @@ def noise_model_dict():
 
 
 @pytest.fixture
-def device_raw(isa_dict, noise_model_dict, specs_dict):
-    return {
-        "isa": isa_dict,
-        "noise_model": noise_model_dict,
-        "specs": specs_dict,
-        "is_online": True,
-        "is_retuning": False,
-    }
-
-
-@pytest.fixture
-def test_device(device_raw):
-    return QCSDevice("test_device", device_raw)
+def qcs_aspen8_device(qcs_aspen8_isa):
+    return QCSDevice(quantum_processor_id="Aspen-8", isa=qcs_aspen8_isa)
 
 
 @pytest.fixture(scope="session")
@@ -158,9 +147,9 @@ def qvm(client: Client):
 
 
 @pytest.fixture()
-def compiler(test_device, client: Client):
+def compiler(qcs_aspen8_device, client: Client):
     try:
-        compiler = QVMCompiler(device=test_device, client=client, timeout=1)
+        compiler = QVMCompiler(device=qcs_aspen8_device, client=client, timeout=1)
         compiler.quil_to_native_quil(Program(I(0)))
         return compiler
     except (RequestException, QuilcNotRunning, UnknownApiError, TimeoutError) as e:
@@ -170,8 +159,8 @@ def compiler(test_device, client: Client):
 
 
 @pytest.fixture()
-def dummy_compiler(test_device: QCSDevice, client: Client):
-    return DummyCompiler(test_device, client)
+def dummy_compiler(qcs_aspen8_device: QCSDevice, client: Client):
+    return DummyCompiler(qcs_aspen8_device, client)
 
 
 @pytest.fixture(scope="session")

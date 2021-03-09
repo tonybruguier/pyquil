@@ -24,12 +24,8 @@ from typing import List, Dict, Tuple, Iterator, Mapping, Optional, Sequence, Set
 
 import networkx as nx
 import numpy as np
-<<<<<<< HEAD
-=======
 from pyquil.contrib.rpcq import CompilerISA
 
-from qcs_api_client.operations.sync import list_quantum_processors
->>>>>>> delete pyquil isa in favor of qcs and compiler distinct isas
 from qcs_api_client.models import ListQuantumProcessorsResponse
 from qcs_api_client.operations.sync import list_quantum_processors
 

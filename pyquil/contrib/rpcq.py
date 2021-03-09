@@ -64,8 +64,20 @@ def get_edge(device: CompilerISA, qubit1: int, qubit2: int) -> Optional[Edge]:
     return device.edges.get(edge_id)
 
 
-def compiler_isa_to_target_device(device: CompilerISA):
-    return TargetDevice(isa=device.dict(by_alias=True))
+def _edge_ids_from_id(edge_id: str):
+    return [int(node_id) for node_id in edge_id.split("-")]
+
+
+def _compiler_isa_from_dict(data: Dict[str, Dict]):
+    compiler_isa_data = {
+        "1Q": {k: {"id": int(k), **v} for k, v in data.get("1Q", {}).items()},
+        "2Q": {k: {"ids": _edge_ids_from_id(k), **v} for k, v in data.get("2Q", {}).items()},
+    }
+    return CompilerISA.parse_obj(compiler_isa_data)
+
+
+def compiler_isa_to_target_device(compiler_isa: CompilerISA):
+    return TargetDevice(isa=compiler_isa.dict(by_alias=True))
 
 
 class Supported1QGate:
