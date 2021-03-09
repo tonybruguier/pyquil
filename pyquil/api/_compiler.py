@@ -62,14 +62,9 @@ def parse_mref(val: str) -> MemoryReference:
 def _collect_memory_descriptors(program: Program) -> Dict[str, ParameterSpec]:
     """Collect Declare instructions that are important for building the patch table.
 
-    This is secretly stored on BinaryExecutableResponse. We're careful to make sure
-    these objects are json serializable.
-
     :return: A dictionary of variable names to specs about the declared region.
     """
 
-    # TODO(andrew): follow-up with Eric, as TranslateNativeQuilToEncryptedBinaryResponseMemoryDescriptors
-    # may just become a dictionary anyway
     return {
         instr.name: ParameterSpec(type=instr.memory_type, length=instr.memory_size)
         for instr in program
@@ -113,7 +108,6 @@ class QPUCompiler(AbstractCompiler):
         )
 
         # TODO(andrew): timeout?
-        # TODO(andrew): custom class for encrypted binary
         response = cast(
             TranslateNativeQuilToEncryptedBinaryResponse,
             self._client.qcs_request(

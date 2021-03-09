@@ -158,7 +158,6 @@ class AbstractQuantumSimulator(ABC):
         """
 
 
-# TODO(andrew): make this adhere to QAM interface
 class PyQVM(QAM):
     def __init__(
         self,
@@ -217,7 +216,8 @@ class PyQVM(QAM):
         self._last_measure_program_loc = None
 
     def load(self, executable: QuantumExecutable) -> "PyQVM":
-        # TODO(andrew): type check and error
+        if not isinstance(executable, Program):
+            raise TypeError("`executable` argument must be a `Program`.")
 
         # initialize program counter
         self.program = executable

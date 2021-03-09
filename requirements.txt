@@ -2,7 +2,7 @@
 numpy
 scipy
 lark
-qcs-api-client == 0.*
+qcs-api-client == 0.6.2.dev1084479551  # TODO: update before v3
 requests
 networkx >= 2.0.0
 

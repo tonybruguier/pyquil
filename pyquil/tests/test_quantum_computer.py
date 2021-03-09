@@ -205,7 +205,6 @@ def test_run(client: Client):
         qam=QVM(client=client, gate_noise=(0.01, 0.01, 0.01)),
         compiler=DummyCompiler(device=device, client=client),
     )
-    # TODO(andrew): should run call compile for users?
     bitstrings = qc.run(
         qc.compile(
             Program(

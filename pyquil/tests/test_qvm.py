@@ -45,14 +45,6 @@ def test_qvm_run_only_pqer(client: Client):
     qvm = QVM(client=client, gate_noise=(0.01, 0.01, 0.01))
     p = Program(Declare("ro", "BIT"), X(0), MEASURE(0, MemoryReference("ro")))
 
-    # TODO(andrew): keep this behavior?
-    # with pytest.raises(
-    #     TypeError, match="Make sure you have explicitly compiled your program."
-    # ):
-    #     qvm.load(p)
-    #     qvm.run()
-    #     qvm.wait()
-
     qvm.load(p.wrap_in_numshots_loop(1000))
     qvm.run()
     qvm.wait()
@@ -125,18 +117,17 @@ def test_qvm_version(client: Client):
     assert is_a_version_string(version)
 
 
-# TODO(andrew): add match= to pytest.raises calls
 def test_validate_noise_probabilities():
-    with pytest.raises(TypeError):
+    with pytest.raises(TypeError, match="noise_parameter must be a tuple"):
         validate_noise_probabilities(1)
-    with pytest.raises(TypeError):
-        validate_noise_probabilities(["a", "b", "c"])
-    with pytest.raises(ValueError):
+    with pytest.raises(TypeError, match="noise_parameter values should all be floats"):
+        validate_noise_probabilities(("a", "b", "c"))
+    with pytest.raises(ValueError, match="noise_parameter tuple must be of length 3"):
         validate_noise_probabilities((0.0, 0.0, 0.0, 0.0))
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="sum of entries in noise_parameter must be between 0 and 1 \(inclusive\)"):
         validate_noise_probabilities((0.5, 0.5, 0.5))
-    with pytest.raises(ValueError):
-        validate_noise_probabilities((-0.5, -0.5, -0.5))
+    with pytest.raises(ValueError, match="noise_parameter values should all be non-negative"):
+        validate_noise_probabilities((-0.5, -0.5, 1.0))
 
 
 def test_validate_qubit_list():

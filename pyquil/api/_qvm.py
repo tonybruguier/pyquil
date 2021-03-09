@@ -478,7 +478,7 @@ http://pyquil.readthedocs.io/en/latest/noise_models.html#support-for-noisy-gates
         :param executable: A compiled executable.
         """
         if not isinstance(executable, Program):
-            raise TypeError("`executable` argument must be a `Program`")
+            raise TypeError("`executable` argument must be a `Program`.")
 
         super().load(executable)
         for region in executable.declarations.keys():

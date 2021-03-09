@@ -19,14 +19,9 @@ from collections import defaultdict
 from typing import Any, Dict, List, Optional, Union, cast
 
 import numpy as np
-from qcs_api_client.models import (
-    TranslateNativeQuilToEncryptedBinaryResponse,
-    TranslateNativeQuilToEncryptedBinaryResponseMemoryDescriptors,
-)
-from qcs_api_client.types import Unset
 from rpcq.messages import QPURequest, ParameterAref, ParameterSpec
 
-from pyquil.api import Client, QuantumExecutable
+from pyquil.api import Client, QuantumExecutable, EncryptedBinary
 from pyquil.api._error_reporting import _record_call
 from pyquil.api._qam import QAM
 from pyquil.parser import parse
@@ -46,12 +41,10 @@ def decode_buffer(buffer: Dict[str, Any]) -> np.ndarray:
 
 
 def _extract_memory_regions(
-    memory_descriptors: Union[TranslateNativeQuilToEncryptedBinaryResponseMemoryDescriptors, Unset],
-    ro_sources: Union[List[List[str]], Unset],
+    memory_descriptors: Dict[str, ParameterSpec],
+    ro_sources: Dict[MemoryReference, str],
     buffers: Dict[str, np.ndarray],
 ) -> Dict[str, np.ndarray]:
-
-    # TODO(andrew): rework this for new response shapes
 
     # hack to extract num_shots indirectly from the shape of the returned data
     first, *rest = buffers.values()
@@ -71,7 +64,7 @@ def _extract_memory_regions(
 
     regions: Dict[str, np.array] = {}
 
-    for mref, key in ro_sources:
+    for mref, key in ro_sources.items():
         # Translation sometimes introduces ro_sources that the user didn't ask for.
         # That's fine, we just ignore them.
         if mref.name not in memory_descriptors:
@@ -138,23 +131,24 @@ class QPU(QAM):
 
         :param executable: Load a compiled executable onto the QAM.
         """
-        if not isinstance(executable, TranslateNativeQuilToEncryptedBinaryResponse):
+        if not isinstance(executable, EncryptedBinary):
             raise TypeError(
-                "`executable` argument must be a `TranslateNativeQuilToEncryptedBinaryResponse`. Make "
+                "`executable` argument must be an `EncryptedBinary`. Make "
                 "sure you have explicitly compiled your program via `qc.compile` "
                 "or `qc.compiler.native_quil_to_executable(...)` for more "
                 "fine-grained control."
             )
 
         super().load(executable)
-        if hasattr(self.executable, "recalculation_table"):
-            recalculation_table = self.executable.recalculation_table  # type: ignore
-            for memory_reference, recalc_rule in recalculation_table.items():
-                # We can only parse complete lines of Quil, so we wrap the arithmetic expression
-                # in a valid Quil instruction to parse it.
-                # TODO: This hack should be replaced after #687
-                expression = cast(Gate, parse(f"RZ({recalc_rule}) 0")[0]).params[0]
-                recalculation_table[memory_reference] = expression
+
+        recalculation_table = self.executable.recalculation_table
+        for memory_reference, recalc_rule in recalculation_table.items():
+            # We can only parse complete lines of Quil, so we wrap the arithmetic expression
+            # in a valid Quil instruction to parse it.
+            # TODO: This hack should be replaced after #687
+            expression = cast(Gate, parse(f"RZ({recalc_rule}) 0")[0]).params[0]
+            recalculation_table[memory_reference] = expression
+
         return self
 
     @_record_call
@@ -175,7 +169,7 @@ class QPU(QAM):
         :return: The QPU object itself.
         """
         super().run()
-        assert isinstance(self.executable, TranslateNativeQuilToEncryptedBinaryResponse)
+        assert isinstance(self.executable, EncryptedBinary)
 
         request = QPURequest(
             program=self.executable.program,
@@ -229,22 +223,21 @@ class QPU(QAM):
         self._update_variables_shim_with_recalculation_table()
 
         # Initialize our patch table
-        recalculation_table = getattr(self.executable, "recalculation_table", None)
-        if recalculation_table is not None:
-            memory_ref_names = list(set(mr.name for mr in recalculation_table.keys()))
-            if memory_ref_names:
-                assert len(memory_ref_names) == 1, (
-                    "We expected only one declared memory region for "
-                    "the gate parameter arithmetic replacement references."
-                )
-                memory_reference_name = memory_ref_names[0]
-                patch_values[memory_reference_name] = [0.0] * len(recalculation_table)
+        assert isinstance(self.executable, EncryptedBinary)
+        recalculation_table = self.executable.recalculation_table
+        memory_ref_names = list(set(mr.name for mr in recalculation_table.keys()))
+        if memory_ref_names:
+            assert len(memory_ref_names) == 1, (
+                "We expected only one declared memory region for "
+                "the gate parameter arithmetic replacement references."
+            )
+            memory_reference_name = memory_ref_names[0]
+            patch_values[memory_reference_name] = [0.0] * len(recalculation_table)
 
-        assert isinstance(self.executable, TranslateNativeQuilToEncryptedBinaryResponse)
         for name, spec in self.executable.memory_descriptors.items():
             # NOTE: right now we fake reading out measurement values into classical memory
             # hence we omit them here from the patch table.
-            if any(name == mref.name for mref, _ in self.executable.ro_sources):
+            if any(name == mref.name for mref, _ in self.executable.ro_sources.items()):
                 continue
             initial_value = 0.0 if spec.type == "REAL" else 0
             patch_values[name] = [initial_value] * spec.length
@@ -302,9 +295,7 @@ class QPU(QAM):
 
         Once the _variables_shim is filled, execution continues as with regular binary patching.
         """
-        if not hasattr(self.executable, "recalculation_table"):
-            # No recalculation table, no work to be done here.
-            return
+        assert isinstance(self.executable, EncryptedBinary)
         for mref, expression in self.executable.recalculation_table.items():  # type: ignore
             # Replace the user-declared memory references with any values the user has written,
             # coerced to a float because that is how we declared it.
