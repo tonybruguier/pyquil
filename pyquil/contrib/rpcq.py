@@ -1,6 +1,6 @@
 from typing import Dict, List, Sequence, Union, Optional
 from pydantic import BaseModel, Field
-
+from rpcq.messages import TargetDevice
 
 # TODO, we can move this into the RPCQ repository.
 
@@ -62,6 +62,10 @@ def add_edge(device: CompilerISA, qubit1: int, qubit2: int) -> Edge:
 def get_edge(device: CompilerISA, qubit1: int, qubit2: int) -> Optional[Edge]:
     edge_id = _make_edge_id(qubit1, qubit2)
     return device.edges.get(edge_id)
+
+
+def compiler_isa_to_target_device(device: CompilerISA):
+    return TargetDevice(isa=device.dict(by_alias=True))
 
 
 class Supported1QGate:

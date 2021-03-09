@@ -186,11 +186,11 @@ def test_device_stuff(client: Client):
     qc = QuantumComputer(
         name="testy!",
         qam=None,  # not necessary for this test
-        compiler=DummyCompiler(device=NxDevice(topo), client=client),
+        compiler=DummyCompiler(device=NxDevice(topo, gates_2q=["CPHASE"]), client=client),
     )
     assert nx.is_isomorphic(qc.qubit_topology(), topo)
 
-    isa = qc.get_isa(twoq_type="CPHASE")
+    isa = qc.to_compiler_isa()
     assert isa.edges[0].type == "CPHASE"
     assert isa.edges[0].targets == (0, 4)
 
@@ -258,7 +258,8 @@ def test_run_pyqvm_noisy(client: Client):
 
 def test_readout_symmetrization(client: Client):
     device = NxDevice(nx.complete_graph(3))
-    noise_model = decoherence_noise_with_asymmetric_ro(gates=gates_in_isa(device.get_isa()))
+    compiler_isa = device.to_compiler_isa()
+    noise_model = decoherence_noise_with_asymmetric_ro(gates=gates_in_isa(compiler_isa))
     qc = QuantumComputer(
         name="testy!",
         qam=QVM(client=client, noise_model=noise_model),

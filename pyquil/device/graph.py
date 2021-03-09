@@ -54,6 +54,7 @@ DEFAULT_2Q_GATES = [
     Supported2QGate.CZ,
 ]
 
+
 def compiler_isa_from_graph(
     graph: nx.Graph,
         gates_1q: Optional[List[str]] = None,

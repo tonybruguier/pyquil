@@ -98,7 +98,7 @@ class QuantumComputer:
         """
         return self.compiler.device.qubit_topology()
 
-    def get_isa(self) -> CompilerISA:
+    def to_compiler_isa(self) -> CompilerISA:
         """
         Return a target ISA for this QuantumComputer's device.
 
@@ -107,7 +107,7 @@ class QuantumComputer:
         :param oneq_type: The family of one-qubit gates to target
         :param twoq_type: The family of two-qubit gates to target
         """
-        return self.compiler.device.get_isa()
+        return self.compiler.device.to_compiler_isa()
 
     @_record_call
     def run(
@@ -656,7 +656,7 @@ def _get_qvm_with_topology(
     device = NxDevice(topology=topology)
     if noisy:
         noise_model: Optional[NoiseModel] = decoherence_noise_with_asymmetric_ro(
-            gates=gates_in_isa(device.get_isa())
+            gates=gates_in_isa(device.to_compiler_isa())
         )
     else:
         noise_model = None
