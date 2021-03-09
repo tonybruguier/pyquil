@@ -622,10 +622,7 @@ def _get_qvm_qc(
     return QuantumComputer(
         name=name,
         qam=_get_qvm_or_pyqvm(
-            client=client,
-            qvm_type=qvm_type,
-            noise_model=noise_model,
-            device=device,
+            client=client, qvm_type=qvm_type, noise_model=noise_model, device=device,
         ),
         compiler=QVMCompiler(device=device, client=client, timeout=compiler_timeout),
     )

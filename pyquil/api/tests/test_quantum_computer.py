@@ -200,14 +200,10 @@ def test_qc_joint_calibration(client: Client):
     assert results[0].additional_results[1].total_counts == 40000
 
 
-def test_qc_expectation_on_qvm(
-    client: Client, dummy_compiler: DummyCompiler
-):
+def test_qc_expectation_on_qvm(client: Client, dummy_compiler: DummyCompiler):
     # regression test for https://github.com/rigetti/forest-tutorials/issues/2
     device = NxDevice(nx.complete_graph(2))
-    qc = QuantumComputer(
-        name="testy!", qam=QVM(client=client), compiler=dummy_compiler,
-    )
+    qc = QuantumComputer(name="testy!", qam=QVM(client=client), compiler=dummy_compiler)
 
     p = Program()
     theta = p.declare("theta", "REAL")

@@ -16,7 +16,7 @@
 import uuid
 import warnings
 from collections import defaultdict
-from typing import Any, Dict, List, Optional, Tuple, Union, cast
+from typing import Any, Dict, List, Optional, Union, cast
 
 import numpy as np
 from qcs_api_client.models import (
@@ -24,13 +24,12 @@ from qcs_api_client.models import (
     TranslateNativeQuilToEncryptedBinaryResponseMemoryDescriptors,
 )
 from qcs_api_client.types import Unset
-from rpcq.messages import QuiltBinaryExecutableResponse, QPURequest, ParameterAref, ParameterSpec
+from rpcq.messages import QPURequest, ParameterAref, ParameterSpec
 
 from pyquil.api import Client, QuantumExecutable
 from pyquil.api._error_reporting import _record_call
 from pyquil.api._qam import QAM
 from pyquil.parser import parse
-from pyquil.quil import Program
 from pyquil.quilatom import MemoryReference, BinaryExp, Function, Parameter, ExpressionDesignator
 from pyquil.quilbase import Gate
 

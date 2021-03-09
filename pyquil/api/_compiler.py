@@ -14,12 +14,9 @@
 #    limitations under the License.
 ##############################################################################
 import logging
-from typing import Dict, Any, Optional, List, Tuple, cast
+from typing import Dict, Optional, cast
 
-from qcs_api_client.models import (
-    TranslateNativeQuilToEncryptedBinaryResponse,
-    TranslateNativeQuilToEncryptedBinaryResponseMemoryDescriptors,
-)
+from qcs_api_client.models import TranslateNativeQuilToEncryptedBinaryResponse
 from qcs_api_client.models.get_quilt_calibrations_response import GetQuiltCalibrationsResponse
 from qcs_api_client.models.translate_native_quil_to_encrypted_binary_request import (
     TranslateNativeQuilToEncryptedBinaryRequest,
@@ -28,20 +25,17 @@ from qcs_api_client.operations.sync import (
     translate_native_quil_to_encrypted_binary,
     get_quilt_calibrations,
 )
-from rpcq.messages import (
-    PyQuilExecutableResponse,
-    ParameterSpec,
-)
+from rpcq.messages import ParameterSpec
 
 from pyquil.api import Client
 from pyquil.api._error_reporting import _record_call
-from pyquil.api._qac import AbstractCompiler, QuantumExecutable
+from pyquil.api._qac import AbstractCompiler, QuantumExecutable, EncryptedBinary
 from pyquil.api._rewrite_arithmetic import rewrite_arithmetic
 from pyquil.device._main import AbstractDevice
 from pyquil.parser import parse_program
 from pyquil.quil import Program
 from pyquil.quilatom import MemoryReference
-from pyquil.quilbase import Measurement, Declare
+from pyquil.quilbase import Declare
 
 _log = logging.getLogger(__name__)
 
@@ -65,36 +59,7 @@ def parse_mref(val: str) -> MemoryReference:
         raise ValueError(f"Unable to parse memory reference {val}.")
 
 
-def _extract_attribute_dictionary_from_program(program: Program) -> Dict[str, Any]:
-    """
-    Collects the attributes from PYQUIL_PROGRAM_PROPERTIES on the Program object program
-    into a dictionary.
-
-    :param program: Program to collect attributes from.
-    :return: Dictionary of attributes, keyed on the string attribute name.
-    """
-    attrs = {}
-    for prop in PYQUIL_PROGRAM_PROPERTIES:
-        attrs[prop] = getattr(program, prop)
-    return attrs
-
-
-def _extract_program_from_pyquil_executable_response(response: PyQuilExecutableResponse) -> Program:
-    """
-    Unpacks a rpcq PyQuilExecutableResponse object into a pyQuil Program object.
-
-    :param response: PyQuilExecutableResponse object to be unpacked.
-    :return: Resulting pyQuil Program object.
-    """
-    p = Program(response.program)
-    for attr, val in response.attributes.items():
-        setattr(p, attr, val)
-    return p
-
-
-def _collect_memory_descriptors(
-    program: Program,
-) -> TranslateNativeQuilToEncryptedBinaryResponseMemoryDescriptors:
+def _collect_memory_descriptors(program: Program) -> Dict[str, ParameterSpec]:
     """Collect Declare instructions that are important for building the patch table.
 
     This is secretly stored on BinaryExecutableResponse. We're careful to make sure
@@ -110,57 +75,6 @@ def _collect_memory_descriptors(
         for instr in program
         if isinstance(instr, Declare)
     }
-
-
-# TODO This should be deleted once native_quil_to_executable no longer
-# uses it.
-def _collect_classical_memory_write_locations(
-    program: Program,
-) -> List[Optional[Tuple[MemoryReference, str]]]:
-    """Collect classical memory locations that are the destination of MEASURE instructions
-    These locations are important for munging output buffers returned from the QPU
-    server to the shape expected by the user.
-    This is secretly stored on BinaryExecutableResponse. We're careful to make sure
-    these objects are json serializable.
-    :return: list whose value `(q, m)` at index `addr` records that the `m`-th measurement of
-        qubit `q` was measured into `ro` address `addr`. A value of `None` means nothing was
-        measured into `ro` address `addr`.
-    """
-    ro_size = None
-    for instr in program:
-        if isinstance(instr, Declare) and instr.name == "ro":
-            if ro_size is not None:
-                raise ValueError(
-                    "I found multiple places where a register named `ro` is declared! "
-                    "Please only declare one register named `ro`."
-                )
-            ro_size = instr.memory_size
-
-    ro_sources: Dict[int, Tuple[MemoryReference, str]] = {}
-
-    for instr in program:
-        if isinstance(instr, Measurement):
-            q = instr.qubit.index
-            if instr.classical_reg:
-                offset = instr.classical_reg.offset
-                assert instr.classical_reg.name == "ro", instr.classical_reg.name
-                if offset in ro_sources:
-                    _log.warning(
-                        f"Overwriting the measured result in register "
-                        f"{instr.classical_reg} from qubit {ro_sources[offset]} "
-                        f"to qubit {q}"
-                    )
-                # we track how often each qubit is measured (per shot) and into which register it is
-                # measured in its n-th measurement.
-                ro_sources[offset] = (MemoryReference(name="ro", offset=offset), f"q{q}")
-    if ro_size:
-        return [ro_sources.get(i) for i in range(ro_size)]
-    elif ro_sources:
-        raise ValueError(
-            "Found MEASURE instructions, but no 'ro' or 'ro_table' region was declared."
-        )
-    else:
-        return []
 
 
 class QPUCompiler(AbstractCompiler):
@@ -209,16 +123,12 @@ class QPUCompiler(AbstractCompiler):
             ),
         )
 
-        response.recalculation_table = arithmetic_response.recalculation_table  # type: ignore
-        response.memory_descriptors = _collect_memory_descriptors(
-            nq_program
+        return EncryptedBinary(
+            program=response.program,
+            memory_descriptors=_collect_memory_descriptors(nq_program),
+            ro_sources={parse_mref(mref): source for mref, source in response.ro_sources},
+            recalculation_table=arithmetic_response.recalculation_table,
         )
-
-        # Convert strings to MemoryReference for downstream processing.
-        # TODO(andrew): rework this based on new response shape
-        response.ro_sources = [(parse_mref(mref), source) for mref, source in response.ro_sources]
-
-        return response
 
     def _get_calibration_program(self) -> Program:
         response = cast(
@@ -278,8 +188,4 @@ class QVMCompiler(AbstractCompiler):
 
     @_record_call
     def native_quil_to_executable(self, nq_program: Program) -> QuantumExecutable:
-        # TODO(andrew): custom class for this that's not a "response"
-        return PyQuilExecutableResponse(
-            program=nq_program.out(),
-            attributes=_extract_attribute_dictionary_from_program(nq_program),
-        )
+        return nq_program

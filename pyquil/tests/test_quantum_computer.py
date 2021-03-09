@@ -4,7 +4,7 @@ import random
 import networkx as nx
 import numpy as np
 import pytest
-from rpcq.messages import ParameterAref, PyQuilExecutableResponse
+from rpcq.messages import ParameterAref
 
 from pyquil import Program, get_qc, list_quantum_computers
 from pyquil.api import QVM, QuantumComputer, local_forest_runtime, Client
@@ -140,7 +140,9 @@ def test_measure_bitstrings(client: Client):
     dummy_compiler = DummyCompiler(device=device, client=client)
     qc_pyqvm = QuantumComputer(name="testy!", qam=PyQVM(n_qubits=2), compiler=dummy_compiler)
     qc_forest = QuantumComputer(
-        name="testy!", qam=QVM(client=client, gate_noise=(0.00, 0.00, 0.00)), compiler=dummy_compiler,
+        name="testy!",
+        qam=QVM(client=client, gate_noise=(0.00, 0.00, 0.00)),
+        compiler=dummy_compiler,
     )
     prog = Program(I(0), I(1))
     meas_qubits = [0, 1]
@@ -204,17 +206,19 @@ def test_run(client: Client):
         compiler=DummyCompiler(device=device, client=client),
     )
     # TODO(andrew): should run call compile for users?
-    bitstrings = qc.run(qc.compile(
-        Program(
-            Declare("ro", "BIT", 3),
-            H(0),
-            CNOT(0, 1),
-            CNOT(1, 2),
-            MEASURE(0, MemoryReference("ro", 0)),
-            MEASURE(1, MemoryReference("ro", 1)),
-            MEASURE(2, MemoryReference("ro", 2)),
-        ).wrap_in_numshots_loop(1000)
-    ))
+    bitstrings = qc.run(
+        qc.compile(
+            Program(
+                Declare("ro", "BIT", 3),
+                H(0),
+                CNOT(0, 1),
+                CNOT(1, 2),
+                MEASURE(0, MemoryReference("ro", 0)),
+                MEASURE(1, MemoryReference("ro", 1)),
+                MEASURE(2, MemoryReference("ro", 2)),
+            ).wrap_in_numshots_loop(1000)
+        )
+    )
 
     assert bitstrings.shape == (1000, 3)
     parity = np.sum(bitstrings, axis=1) % 3
@@ -439,10 +443,7 @@ def test_qc_compile(dummy_compiler: DummyCompiler):
     qc.compiler = dummy_compiler
     prog = Program()
     prog += H(0)
-    exe = qc.compile(prog)
-    prog1 = Program(exe.program)
-    assert isinstance(exe, PyQuilExecutableResponse)
-    assert prog1 == prog
+    assert qc.compile(prog) == prog
 
 
 def test_qc_error():
@@ -482,39 +483,20 @@ def test_run_and_measure_noiseless_qvm():
     assert all(bitstring_array[0][1:] == np.zeros(len(qc.qubits()) - 1))
 
 
-def test_qvm_compile_pickiness():
-    p = Program(Declare("ro", "BIT"), X(0), MEASURE(0, MemoryReference("ro")))
-    p.wrap_in_numshots_loop(1000)
-    nq = PyQuilExecutableResponse(program=p.out(), attributes={"num_shots": 1000})
-
-    # Ok, non-realistic
-    qc = get_qc("9q-qvm")
-    qc.run(p)
-
-    # Also ok
-    qc.run(nq)
-
-    # Not ok
-    qc = get_qc("9q-square-qvm")
-    with pytest.raises(TypeError):
-        qc.run(p)
-
-    # Yot ok
-    qc.run(nq)
-
-
 def test_run_with_parameters(client: Client):
     device = NxDevice(nx.complete_graph(3))
     qc = QuantumComputer(
         name="testy!", qam=QVM(client=client), compiler=DummyCompiler(device=device, client=client)
     )
     bitstrings = qc.run(
-        executable=qc.compile(Program(
-            Declare(name="theta", memory_type="REAL"),
-            Declare(name="ro", memory_type="BIT"),
-            RX(MemoryReference("theta"), 0),
-            MEASURE(0, MemoryReference("ro")),
-        ).wrap_in_numshots_loop(1000)),
+        executable=qc.compile(
+            Program(
+                Declare(name="theta", memory_type="REAL"),
+                Declare(name="ro", memory_type="BIT"),
+                RX(MemoryReference("theta"), 0),
+                MEASURE(0, MemoryReference("ro")),
+            ).wrap_in_numshots_loop(1000)
+        ),
         memory_map={"theta": [np.pi]},
     )
 

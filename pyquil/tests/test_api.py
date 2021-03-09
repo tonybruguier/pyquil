@@ -14,30 +14,20 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 ##############################################################################
-import asyncio
 import json
-import os
-import signal
-import time
 from math import pi
-from multiprocessing import Process
-from unittest.mock import patch
 
-import networkx as nx
 import numpy as np
 import pytest
-from _pytest.monkeypatch import MonkeyPatch
 from pytest_httpx import HTTPXMock
-from rpcq import Server
-from rpcq.messages import QuiltBinaryExecutableRequest, QuiltBinaryExecutableResponse
 
-from pyquil.api import QVMConnection, QPUCompiler, get_qc, QVMCompiler
-from pyquil.device import ISA, NxDevice
+from pyquil.api import QVMConnection
+from pyquil.device import ISA
 from pyquil.gates import CNOT, H, MEASURE, PHASE, Z, RZ, RX, CZ
 from pyquil.paulis import PauliTerm
 from pyquil.quil import Program
-from pyquil.quilbase import Halt, Declare
 from pyquil.quilatom import MemoryReference
+from pyquil.quilbase import Halt, Declare
 from pyquil.simulation.tools import program_unitary
 
 EMPTY_PROGRAM = Program()

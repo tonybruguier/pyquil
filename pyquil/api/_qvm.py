@@ -18,10 +18,9 @@ from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Union
 
 import numpy as np
 from requests.exceptions import ConnectionError
-from rpcq.messages import PyQuilExecutableResponse
 
 from pyquil.api import Client, QuantumExecutable
-from pyquil.api._compiler import QVMCompiler, _extract_program_from_pyquil_executable_response
+from pyquil.api._compiler import QVMCompiler
 from pyquil.api._error_reporting import _record_call
 from pyquil.api._qam import QAM
 from pyquil.device._main import Device
@@ -401,7 +400,6 @@ programs run on this QVM.
 
 
 class QVM(QAM):
-
     @_record_call
     def __init__(
         self,
@@ -479,18 +477,12 @@ http://pyquil.readthedocs.io/en/latest/noise_models.html#support-for-noisy-gates
 
         :param executable: A compiled executable.
         """
-        if not isinstance(executable, PyQuilExecutableResponse):
-            raise TypeError(
-                "`executable` argument must be a `PyQuilExecutableResponse`. Make "
-                "sure you have explicitly compiled your program via `qc.compile` "
-                "or `qc.compiler.native_quil_to_executable(...)` for more "
-                "fine-grained control."
-            )
+        if not isinstance(executable, Program):
+            raise TypeError("`executable` argument must be a `Program`")
 
         super().load(executable)
-        program = _extract_program_from_pyquil_executable_response(executable)
-        for region in program.declarations.keys():
-            self._memory_results[region] = np.ndarray((program.num_shots, 0), dtype=np.int64)
+        for region in executable.declarations.keys():
+            self._memory_results[region] = np.ndarray((executable.num_shots, 0), dtype=np.int64)
         return self
 
     @_record_call
@@ -502,9 +494,9 @@ http://pyquil.readthedocs.io/en/latest/noise_models.html#support-for-noisy-gates
         :return: An array of bitstrings of shape ``(trials, len(classical_addresses))``
         """
         super().run()
-        assert isinstance(self.executable, PyQuilExecutableResponse)
+        assert isinstance(self.executable, Program)
 
-        quil_program = _extract_program_from_pyquil_executable_response(self.executable)
+        quil_program = self.executable
         trials = quil_program.num_shots
         classical_addresses = get_classical_addresses_from_program(quil_program)
 

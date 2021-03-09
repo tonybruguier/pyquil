@@ -19,7 +19,6 @@ from collections import defaultdict
 from typing import Dict, Sequence, Union, Optional
 
 import numpy as np
-from qcs_api_client.models import TranslateNativeQuilToEncryptedBinaryResponse
 from rpcq.messages import ParameterAref
 
 from pyquil.api import Client
