@@ -192,8 +192,8 @@ def test_device_stuff(client: Client):
 
     isa = qc.to_compiler_isa()
 
-    assert isa.edges['0-4'].gates[0].operator == "CPHASE"
-    assert isa.edges['0-4'].ids == [0, 4]
+    assert isa.edges["0-4"].gates[0].operator == "CPHASE"
+    assert isa.edges["0-4"].ids == [0, 4]
 
 
 # We sometimes narrowly miss the np.mean(parity) < 0.15 assertion, below. Alternatively, that upper

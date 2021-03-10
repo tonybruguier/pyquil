@@ -110,7 +110,8 @@ class AbstractCompiler(ABC):
         self._connect()
         compiler_isa = self.device.to_compiler_isa()
         request = NativeQuilRequest(
-            quil=program.out(calibrations=False), target_device=compiler_isa_to_target_device(compiler_isa)
+            quil=program.out(calibrations=False),
+            target_device=compiler_isa_to_target_device(compiler_isa),
         )
         response = self._client.compiler_rpcq_request(
             "quil_to_native_quil", request, protoquil=protoquil, timeout=self._timeout,

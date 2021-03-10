@@ -1,9 +1,7 @@
 from pyquil.device._base import AbstractDevice
 from typing import List
 from pyquil.device.graph import compiler_isa_to_graph
-from pyquil.contrib.rpcq import (
-    CompilerISA,
-)
+from pyquil.contrib.rpcq import CompilerISA
 
 import networkx as nx
 
@@ -11,9 +9,7 @@ import networkx as nx
 class CompilerDevice(AbstractDevice):
     _isa: CompilerISA
 
-    def __init__(
-            self,
-                 isa: CompilerISA) -> None:
+    def __init__(self, isa: CompilerISA) -> None:
         self._isa = isa
 
     def qubit_topology(self) -> nx.Graph:

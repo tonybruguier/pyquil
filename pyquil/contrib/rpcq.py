@@ -15,13 +15,13 @@ class Operator(BaseModel):
 class MeasureInfo(Operator):
     qubit: Optional[Union[int, str]] = None
     target: Optional[Union[int, str]] = None
-    operator_type: Literal['measure'] = 'measure'
+    operator_type: Literal["measure"] = "measure"
 
 
 class GateInfo(Operator):
     parameters: Optional[Sequence[Union[float, str]]] = None
     arguments: Optional[Sequence[Union[float, str]]] = None
-    operator_type: Literal['gate'] = 'gate'
+    operator_type: Literal["gate"] = "gate"
 
 
 class Qubit(BaseModel):
@@ -66,7 +66,7 @@ def get_qubit(device: CompilerISA, node_id: int) -> Optional[Qubit]:
 
 
 def _make_edge_id(qubit1: int, qubit2: int) -> str:
-    return '-'.join([str(qubit) for qubit in sorted([qubit1, qubit2])])
+    return "-".join([str(qubit) for qubit in sorted([qubit1, qubit2])])
 
 
 def add_edge(device: CompilerISA, qubit1: int, qubit2: int) -> Edge:

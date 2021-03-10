@@ -1,5 +1,3 @@
-from collections import OrderedDict
-
 import numpy as np
 from unittest.mock import Mock
 import pytest
@@ -26,7 +24,7 @@ from pyquil.noise import (
     estimate_assignment_probs,
     NO_NOISE,
 )
-from pyquil.gates import RZ, RX, I, CZ, ISWAP, CPHASE
+from pyquil.gates import RZ, RX, I, CZ
 from collections import OrderedDict
 
 from pyquil.quil import Pragma, Program

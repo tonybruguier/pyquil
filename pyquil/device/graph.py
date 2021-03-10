@@ -4,8 +4,13 @@ import numpy as np
 from pyquil.device._base import AbstractDevice
 from typing import List, Optional
 from pyquil.contrib.rpcq import (
-    GateInfo, MeasureInfo, Supported1QGate, Supported2QGate,
-    CompilerISA, add_qubit, add_edge,
+    GateInfo,
+    MeasureInfo,
+    Supported1QGate,
+    Supported2QGate,
+    CompilerISA,
+    add_qubit,
+    add_edge,
 )
 
 import networkx as nx
@@ -22,10 +27,11 @@ class NxDevice(AbstractDevice):
     """
 
     def __init__(
-            self,
-                 topology: nx.Graph,
-                 gates_1q: Optional[List[str]] = None,
-        gates_2q: Optional[List[str]] = None) -> None:
+        self,
+        topology: nx.Graph,
+        gates_1q: Optional[List[str]] = None,
+        gates_2q: Optional[List[str]] = None,
+    ) -> None:
         self.topology = topology
         self.gates_1q = gates_1q
         self.gates_2q = gates_2q
@@ -34,7 +40,9 @@ class NxDevice(AbstractDevice):
         return self.topology
 
     def to_compiler_isa(self) -> CompilerISA:
-        return compiler_isa_from_graph(self.topology, gates_1q=self.gates_1q, gates_2q=self.gates_2q)
+        return compiler_isa_from_graph(
+            self.topology, gates_1q=self.gates_1q, gates_2q=self.gates_2q
+        )
 
     def qubits(self) -> List[int]:
         return sorted(self.topology.nodes)
@@ -56,9 +64,7 @@ DEFAULT_2Q_GATES = [
 
 
 def compiler_isa_from_graph(
-    graph: nx.Graph,
-        gates_1q: Optional[List[str]] = None,
-        gates_2q: Optional[List[str]] = None
+    graph: nx.Graph, gates_1q: Optional[List[str]] = None, gates_2q: Optional[List[str]] = None
 ) -> CompilerISA:
     """
     Generate an ISA object from a NetworkX graph.
@@ -94,9 +100,7 @@ def compiler_isa_to_graph(device: CompilerISA) -> nx.Graph:
 
 
 def _make_i_gates():
-    return [
-        GateInfo(operator=Supported1QGate.I, parameters=[], arguments=["_"])
-    ]
+    return [GateInfo(operator=Supported1QGate.I, parameters=[], arguments=["_"])]
 
 
 def _make_measure_gates():
@@ -107,29 +111,21 @@ def _make_measure_gates():
 
 
 def _make_rx_gates():
-    gates = [
-        GateInfo(operator=Supported1QGate.RX, parameters=[0.0], arguments=["_"])
-    ]
+    gates = [GateInfo(operator=Supported1QGate.RX, parameters=[0.0], arguments=["_"])]
     for param in [np.pi, -np.pi, np.pi / 2, -np.pi / 2]:
         gates.append(GateInfo(operator=Supported1QGate.RX, parameters=[param], arguments=["_"]))
     return gates
 
 
 def _make_rz_gates():
-    return [
-        GateInfo(operator=Supported1QGate.RZ, parameters=["theta"], arguments=["_"])
-    ]
+    return [GateInfo(operator=Supported1QGate.RZ, parameters=["theta"], arguments=["_"])]
 
 
 def _make_wildcard_1q_gates():
-    return [
-        GateInfo(operator="_", parameters="_", arguments=["_"])
-    ]
+    return [GateInfo(operator="_", parameters="_", arguments=["_"])]
 
 
-def _transform_qubit_operation_to_gates(
-        operation_name: str,
-) -> List[Union[GateInfo, MeasureInfo]]:
+def _transform_qubit_operation_to_gates(operation_name: str,) -> List[Union[GateInfo, MeasureInfo]]:
     if operation_name == Supported1QGate.I:
         return _make_i_gates()
     elif operation_name == Supported1QGate.RX:
@@ -146,38 +142,26 @@ def _transform_qubit_operation_to_gates(
 
 
 def _make_cz_gates():
-    return [
-        GateInfo(operator=Supported2QGate.CZ, parameters=[], arguments=["_", "_"])
-    ]
+    return [GateInfo(operator=Supported2QGate.CZ, parameters=[], arguments=["_", "_"])]
 
 
 def _make_iswap_gates():
-    return [
-        GateInfo(operator=Supported2QGate.ISWAP, parameters=[], arguments=["_", "_"])
-    ]
+    return [GateInfo(operator=Supported2QGate.ISWAP, parameters=[], arguments=["_", "_"])]
 
 
 def _make_cphase_gates():
-    return [
-        GateInfo(operator=Supported2QGate.CPHASE, parameters=["theta"], arguments=["_", "_"])
-    ]
+    return [GateInfo(operator=Supported2QGate.CPHASE, parameters=["theta"], arguments=["_", "_"])]
 
 
 def _make_xy_gates():
-    return [
-        GateInfo(operator=Supported2QGate.XY, parameters=["theta"], arguments=["_", "_"])
-    ]
+    return [GateInfo(operator=Supported2QGate.XY, parameters=["theta"], arguments=["_", "_"])]
 
 
 def _make_wildcard_2q_gates():
-    return [
-        GateInfo(operator="_", parameters="_", arguments=["_", "_"])
-    ]
+    return [GateInfo(operator="_", parameters="_", arguments=["_", "_"])]
 
 
-def _transform_edge_operation_to_gates(
-        operation_name: str
-) -> List[GateInfo]:
+def _transform_edge_operation_to_gates(operation_name: str) -> List[GateInfo]:
     if operation_name == Supported2QGate.CZ:
         return _make_cz_gates()
     elif operation_name == Supported2QGate.ISWAP:

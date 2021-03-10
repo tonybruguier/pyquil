@@ -21,7 +21,7 @@ from qcs_api_client.operations.sync import get_instruction_set_architecture
 
 def get_device(client: Client, quantum_processor_id: str) -> QCSDevice:
     isa = client.qcs_request(
-        get_instruction_set_architecture,
-        quantum_processor_id=quantum_processor_id)
+        get_instruction_set_architecture, quantum_processor_id=quantum_processor_id
+    )
 
     return QCSDevice(quantum_processor_id=quantum_processor_id, isa=isa)

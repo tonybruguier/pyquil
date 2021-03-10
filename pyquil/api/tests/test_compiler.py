@@ -35,7 +35,11 @@ def test_invalid_protocol(qcs_aspen8_device: QCSDevice, monkeypatch: MonkeyPatch
         ValueError,
         match="Expected compiler URL 'not-http-or-tcp://example.com' to start with 'tcp://'",
     ):
-        QPUCompiler(processor_id=qcs_aspen8_device.quantum_processor_id, device=qcs_aspen8_device, client=client)
+        QPUCompiler(
+            processor_id=qcs_aspen8_device.quantum_processor_id,
+            device=qcs_aspen8_device,
+            client=client,
+        )
 
 
 def test_compile_with_quilt_calibrations(compiler: QPUCompiler):

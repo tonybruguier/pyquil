@@ -54,7 +54,7 @@ def gates_in_isa(isa: CompilerISA) -> List[Gate]:
     :return: A sequence of Gate objects encapsulating all gates compatible with the ISA.
     """
     gates = []
-    for qubit_id, q in isa.qubits.items():
+    for _qubit_id, q in isa.qubits.items():
         if q.dead:
             continue
         for gate in q.gates:
@@ -62,10 +62,17 @@ def gates_in_isa(isa: CompilerISA) -> List[Gate]:
                 # FIXME  this is ugly
                 if len(gate.parameters) > 0 and gate.parameters[0] == 0.0:
                     continue
-                if gate.operator == Supported1QGate.RZ and len(gate.parameters) == 1 and gate.parameters[0] == "_":
+                if (
+                    gate.operator == Supported1QGate.RZ
+                    and len(gate.parameters) == 1
+                    and gate.parameters[0] == "_"
+                ):
                     parameters = [Parameter("theta")]
                 else:
-                    parameters = [Parameter(param) if isinstance(param, str) else param for param in gate.parameters]
+                    parameters = [
+                        Parameter(param) if isinstance(param, str) else param
+                        for param in gate.parameters
+                    ]
                 gates.append(Gate(gate.operator, parameters, [unpack_qubit(q.id)]))
             elif gate.operator == Supported1QGate.MEASURE:
                 continue

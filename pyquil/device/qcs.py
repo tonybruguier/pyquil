@@ -1,13 +1,10 @@
 from qcs_api_client.models import InstructionSetArchitecture, Characteristic
 from pyquil.contrib.rpcq import CompilerISA, add_edge, add_qubit, get_qubit, get_edge
-from pyquil.device._base import AbstractDevice
 from pyquil.device.graph import AbstractDevice, DEFAULT_1Q_GATES
 from pyquil.noise import NoiseModel
 import networkx as nx
 import numpy as np
-from pyquil.contrib.rpcq import (
-    GateInfo, MeasureInfo, Supported1QGate, Supported2QGate
-)
+from pyquil.contrib.rpcq import GateInfo, MeasureInfo, Supported1QGate, Supported2QGate
 from typing import List, Union, Optional
 
 
@@ -16,7 +13,12 @@ class QCSDevice(AbstractDevice):
     _isa: InstructionSetArchitecture
     noise_model: Optional[NoiseModel]
 
-    def __init__(self, quantum_processor_id: str, isa: InstructionSetArchitecture, noise_model: Optional[NoiseModel] = None):
+    def __init__(
+        self,
+        quantum_processor_id: str,
+        isa: InstructionSetArchitecture,
+        noise_model: Optional[NoiseModel] = None,
+    ):
         self.quantum_processor_id = quantum_processor_id
         self._isa = isa
         self.noise_model = noise_model
@@ -55,11 +57,17 @@ def _transform_qcs_isa_to_compiler_isa(isa: InstructionSetArchitecture) -> Compi
                 # QUESTION: This used to return a default set of gates for a qubit.
                 qubit = get_qubit(device, site.node_ids[0])
                 # QUESTION: Need to check against redundant gates here?
-                qubit.gates.extend(_transform_qubit_operation_to_gates(operation.name, qubit.id, site.characteristics))
+                qubit.gates.extend(
+                    _transform_qubit_operation_to_gates(
+                        operation.name, qubit.id, site.characteristics
+                    )
+                )
 
             elif operation.node_count == 2:
                 edge = get_edge(device, site.node_ids[0], site.node_ids[1])
-                edge.gates.extend(_transform_edge_operation_to_gates(operation.name, site.characteristics))
+                edge.gates.extend(
+                    _transform_edge_operation_to_gates(operation.name, site.characteristics)
+                )
 
             else:
                 # QUESTION: Log error here? Include parameter for hard or soft failure?
@@ -98,10 +106,20 @@ def _make_measure_gates(node_id: int, characteristics: List[Characteristic]):
             break
 
     return [
-        MeasureInfo(operator=Supported1QGate.MEASURE, qubit=str(node_id), target="_", fidelity=fidelity,
-                    duration=duration),
-        MeasureInfo(operator=Supported1QGate.MEASURE, qubit=str(node_id), target=None, fidelity=fidelity,
-                    duration=duration),
+        MeasureInfo(
+            operator=Supported1QGate.MEASURE,
+            qubit=str(node_id),
+            target="_",
+            fidelity=fidelity,
+            duration=duration,
+        ),
+        MeasureInfo(
+            operator=Supported1QGate.MEASURE,
+            qubit=str(node_id),
+            target=None,
+            fidelity=fidelity,
+            duration=duration,
+        ),
     ]
 
 
@@ -116,31 +134,53 @@ def _make_rx_gates(node_id: int, characteristics: List[Characteristic]):
             break
 
     gates = [
-        GateInfo(operator=Supported1QGate.RX, parameters=[0.0], arguments=[node_id], fidelity=PERFECT_FIDELITY,
-                 duration=default_duration)
+        GateInfo(
+            operator=Supported1QGate.RX,
+            parameters=[0.0],
+            arguments=[node_id],
+            fidelity=PERFECT_FIDELITY,
+            duration=default_duration,
+        )
     ]
     for param in [np.pi, -np.pi, np.pi / 2, -np.pi / 2]:
-        gates.append(GateInfo(operator=Supported1QGate.RX, parameters=[param], arguments=[node_id], fidelity=fidelity,
-                 duration=default_duration))
+        gates.append(
+            GateInfo(
+                operator=Supported1QGate.RX,
+                parameters=[param],
+                arguments=[node_id],
+                fidelity=fidelity,
+                duration=default_duration,
+            )
+        )
     return gates
 
 
 def _make_rz_gates(node_id: int):
     return [
-        GateInfo(operator=Supported1QGate.RZ, parameters=["_"], arguments=[node_id], fidelity=PERFECT_FIDELITY,
-                 duration=PERFECT_DURATION)
+        GateInfo(
+            operator=Supported1QGate.RZ,
+            parameters=["_"],
+            arguments=[node_id],
+            fidelity=PERFECT_FIDELITY,
+            duration=PERFECT_DURATION,
+        )
     ]
 
 
 def _make_wildcard_1q_gates(node_id: int):
     return [
-        GateInfo(operator="_", parameters="_", arguments=[node_id], fidelity=PERFECT_FIDELITY,
-                 duration=PERFECT_DURATION)
+        GateInfo(
+            operator="_",
+            parameters="_",
+            arguments=[node_id],
+            fidelity=PERFECT_FIDELITY,
+            duration=PERFECT_DURATION,
+        )
     ]
 
 
 def _transform_qubit_operation_to_gates(
-        operation_name: str, node_id: int, characteristics: List[Characteristic],
+    operation_name: str, node_id: int, characteristics: List[Characteristic],
 ) -> List[Union[GateInfo, MeasureInfo]]:
     if operation_name == Supported1QGate.RX:
         return _make_rx_gates(node_id, characteristics)
@@ -169,8 +209,13 @@ def _make_cz_gates(characteristics: List[Characteristic]):
             break
 
     return [
-        GateInfo(operator=Supported2QGate.CZ, parameters=[], arguments=["_", "_"], fidelity=fidelity,
-                 duration=default_duration)
+        GateInfo(
+            operator=Supported2QGate.CZ,
+            parameters=[],
+            arguments=["_", "_"],
+            fidelity=fidelity,
+            duration=default_duration,
+        )
     ]
 
 
@@ -185,8 +230,13 @@ def _make_iswap_gates(characteristics: List[Characteristic]):
             break
 
     return [
-        GateInfo(operator=Supported2QGate.ISWAP, parameters=[], arguments=["_", "_"], fidelity=fidelity,
-                 duration=default_duration)
+        GateInfo(
+            operator=Supported2QGate.ISWAP,
+            parameters=[],
+            arguments=["_", "_"],
+            fidelity=fidelity,
+            duration=default_duration,
+        )
     ]
 
 
@@ -201,8 +251,13 @@ def _make_cphase_gates(characteristics: List[Characteristic]):
             break
 
     return [
-        GateInfo(operator=Supported2QGate.ISWAP, parameters=["theta"], arguments=["_", "_"], fidelity=fidelity,
-                 duration=default_duration)
+        GateInfo(
+            operator=Supported2QGate.ISWAP,
+            parameters=["theta"],
+            arguments=["_", "_"],
+            fidelity=fidelity,
+            duration=default_duration,
+        )
     ]
 
 
@@ -217,20 +272,30 @@ def _make_xy_gates(characteristics: List[Characteristic]):
             break
 
     return [
-        GateInfo(operator=Supported2QGate.XY, parameters=["theta"], arguments=["_", "_"], fidelity=fidelity,
-                 duration=default_duration)
+        GateInfo(
+            operator=Supported2QGate.XY,
+            parameters=["theta"],
+            arguments=["_", "_"],
+            fidelity=fidelity,
+            duration=default_duration,
+        )
     ]
 
 
 def _make_wildcard_2q_gates():
     return [
-        GateInfo(operator="_", parameters="_", arguments=["_", "_"], fidelity=PERFECT_FIDELITY,
-                 duration=PERFECT_DURATION)
+        GateInfo(
+            operator="_",
+            parameters="_",
+            arguments=["_", "_"],
+            fidelity=PERFECT_FIDELITY,
+            duration=PERFECT_DURATION,
+        )
     ]
 
 
 def _transform_edge_operation_to_gates(
-        operation_name: str, characteristics: List[Characteristic],
+    operation_name: str, characteristics: List[Characteristic],
 ) -> List[Union[GateInfo, MeasureInfo]]:
     if operation_name == Supported2QGate.CZ:
         return _make_cz_gates(characteristics)

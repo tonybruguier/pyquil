@@ -1,5 +1,11 @@
 import networkx as nx
-from pyquil.device.graph import NxDevice, compiler_isa_from_graph, compiler_isa_to_graph, DEFAULT_2Q_GATES, DEFAULT_1Q_GATES
+from pyquil.device.graph import (
+    NxDevice,
+    compiler_isa_from_graph,
+    compiler_isa_to_graph,
+    DEFAULT_2Q_GATES,
+    DEFAULT_1Q_GATES,
+)
 
 DEVICE_FIXTURE_NAME = "mixed_architecture_chip"
 
