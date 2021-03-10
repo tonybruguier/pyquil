@@ -15,14 +15,14 @@
 ##############################################################################
 from abc import ABC, abstractmethod
 from typing import List
-import numpy as np
 from pyquil.contrib.rpcq import CompilerISA, Supported1QGate, Supported2QGate
 from pyquil.quilbase import Gate
 from pyquil.quilatom import Parameter, unpack_qubit
+import logging
 
 import networkx as nx
 
-
+_log = logging.getLogger(__name__)
 THETA = Parameter("theta")
 
 
@@ -58,21 +58,15 @@ def gates_in_isa(isa: CompilerISA) -> List[Gate]:
         if q.dead:
             continue
         for gate in q.gates:
-            if gate.operator == Supported1QGate.I:
-                gates.append(Gate("I", [], [unpack_qubit(q.id)]))
-            elif gate.operator == Supported1QGate.RX:
-                gates.extend(
-                    [
-                        Gate("RX", [np.pi / 2], [unpack_qubit(q.id)]),
-                        Gate("RX", [-np.pi / 2], [unpack_qubit(q.id)]),
-                        Gate("RX", [np.pi], [unpack_qubit(q.id)]),
-                        Gate("RX", [-np.pi], [unpack_qubit(q.id)]),
-                    ]
-                )
-            elif gate.operator == Supported1QGate.RZ:
-                gates.append(Gate("RZ", [THETA], [unpack_qubit(q.id)]))
-            elif gate.operator == Supported1QGate.WILDCARD:
-                gates.extend([Gate("_", "_", [unpack_qubit(q.id)])])
+            if gate.operator in {Supported1QGate.I, Supported1QGate.RX, Supported1QGate.RZ}:
+                # FIXME  this is ugly
+                if len(gate.parameters) > 0 and gate.parameters[0] == 0.0:
+                    continue
+                if gate.operator == Supported1QGate.RZ and len(gate.parameters) == 1 and gate.parameters[0] == "_":
+                    parameters = [Parameter("theta")]
+                else:
+                    parameters = [Parameter(param) if isinstance(param, str) else param for param in gate.parameters]
+                gates.append(Gate(gate.operator, parameters, [unpack_qubit(q.id)]))
             elif gate.operator == Supported1QGate.MEASURE:
                 continue
             else:  # pragma no coverage
@@ -81,28 +75,31 @@ def gates_in_isa(isa: CompilerISA) -> List[Gate]:
     for edge_id, e in isa.edges.items():
         if e.dead:
             continue
-        targets = [unpack_qubit(t) for t in e.ids]
-        for gate in e.gates:
-            if gate.operator == Supported2QGate.CZ:
-                gates.append(Gate("CZ", [], targets))
-                gates.append(Gate("CZ", [], targets[::-1]))
-                continue
-            if gate.operator == Supported2QGate.ISWAP:
-                gates.append(Gate("ISWAP", [], targets))
-                gates.append(Gate("ISWAP", [], targets[::-1]))
-                continue
-            if gate.operator == Supported2QGate.CPHASE:
-                gates.append(Gate("CPHASE", [THETA], targets))
-                gates.append(Gate("CPHASE", [THETA], targets[::-1]))
-                continue
-            if gate.operator == Supported2QGate.XY:
-                gates.append(Gate("XY", [THETA], targets))
-                gates.append(Gate("XY", [THETA], targets[::-1]))
-                continue
-            if gate.operator == Supported2QGate.WILDCARD:
-                gates.append(Gate("_", "_", targets))
-                gates.append(Gate("_", "_", targets[::-1]))
-                continue
 
-            raise ValueError("Unknown edge type: {}".format(gate.operator))
+        # QUESTION: This was previously non-comprehensive, is that still the approach we
+        # want to take? eg gates of [XY, CZ] only yields gates of [CZ]
+        operators = [gate.operator for gate in e.gates]
+        targets = [unpack_qubit(t) for t in e.ids]
+        if Supported2QGate.CZ in operators:
+            gates.append(Gate("CZ", [], targets))
+            gates.append(Gate("CZ", [], targets[::-1]))
+            continue
+        if Supported2QGate.ISWAP in operators:
+            gates.append(Gate("ISWAP", [], targets))
+            gates.append(Gate("ISWAP", [], targets[::-1]))
+            continue
+        if Supported2QGate.CPHASE in operators:
+            gates.append(Gate("CPHASE", [THETA], targets))
+            gates.append(Gate("CPHASE", [THETA], targets[::-1]))
+            continue
+        if Supported2QGate.XY in operators:
+            gates.append(Gate("XY", [THETA], targets))
+            gates.append(Gate("XY", [THETA], targets[::-1]))
+            continue
+        if Supported2QGate.WILDCARD in operators:
+            gates.append(Gate("_", "_", targets))
+            gates.append(Gate("_", "_", targets[::-1]))
+            continue
+
+        _log.warning(f"no gate for edge {edge_id}")
     return gates

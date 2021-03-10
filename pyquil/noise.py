@@ -394,6 +394,7 @@ def get_noisy_gate(gate_name: str, params: Iterable[ParameterDesignator]) -> Tup
     elif gate_name == "CZ":
         assert params == ()
         return np.diag([1, 1, 1, -1]), "NOISY-CZ"
+    # QUESTION: Do we want to support XY here?
     raise NoisyGateUndefined(
         "Undefined gate and params: {}{}\n"
         "Please restrict yourself to I, RX(+/-pi), RX(+/-pi/2), CZ".format(gate_name, params)

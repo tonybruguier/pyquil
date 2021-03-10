@@ -652,7 +652,7 @@ def _get_qvm_with_topology(
     device = NxDevice(topology=topology)
     if noisy:
         noise_model: Optional[NoiseModel] = decoherence_noise_with_asymmetric_ro(
-            gates=gates_in_isa(device.to_compiler_isa())
+            gates=gates_in_isa(device.to_compiler_isa()),
         )
     else:
         noise_model = None

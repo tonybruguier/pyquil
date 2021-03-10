@@ -1,4 +1,5 @@
 from typing import Dict, List, Sequence, Union, Optional
+from typing_extensions import Literal
 from pydantic import BaseModel, Field
 from rpcq.messages import TargetDevice
 
@@ -14,23 +15,39 @@ class Operator(BaseModel):
 class MeasureInfo(Operator):
     qubit: Optional[Union[int, str]] = None
     target: Optional[Union[int, str]] = None
+    operator_type: Literal['measure'] = 'measure'
 
 
 class GateInfo(Operator):
-    parameters: Optional[Sequence[Union[str, float]]] = None
-    arguments: Optional[Sequence[Union[str, float]]] = None
+    parameters: Optional[Sequence[Union[float, str]]] = None
+    arguments: Optional[Sequence[Union[float, str]]] = None
+    operator_type: Literal['gate'] = 'gate'
 
 
 class Qubit(BaseModel):
     id: int
     dead: Optional[bool] = False
-    gates: List[Union[MeasureInfo, GateInfo]] = Field(default_factory=list)
+    gates: List[Union[GateInfo, MeasureInfo]] = Field(default_factory=list)
+
+    def dict(self, **kwargs):
+        exclude = kwargs.get("exclude") or set()
+        if not self.dead:
+            exclude.add("dead")
+        kwargs["exclude"] = {"dead"}
+        return super().dict(**kwargs)
 
 
 class Edge(BaseModel):
     ids: List[int]
     dead: Optional[bool] = False
     gates: Optional[Sequence[GateInfo]] = Field(default_factory=list)
+
+    def dict(self, **kwargs):
+        exclude = kwargs.get("exclude") or set()
+        if not self.dead:
+            exclude.add("dead")
+        kwargs["exclude"] = {"dead"}
+        return super().dict(**kwargs)
 
 
 class CompilerISA(BaseModel):
@@ -77,7 +94,7 @@ def _compiler_isa_from_dict(data: Dict[str, Dict]):
 
 
 def compiler_isa_to_target_device(compiler_isa: CompilerISA):
-    return TargetDevice(isa=compiler_isa.dict(by_alias=True))
+    return TargetDevice(isa=compiler_isa.dict(by_alias=True), specs={})
 
 
 class Supported1QGate:

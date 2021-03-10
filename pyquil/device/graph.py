@@ -50,8 +50,8 @@ DEFAULT_1Q_GATES = [
     Supported1QGate.MEASURE,
 ]
 DEFAULT_2Q_GATES = [
-    Supported2QGate.XY,
     Supported2QGate.CZ,
+    Supported2QGate.XY,
 ]
 
 
@@ -159,7 +159,7 @@ def _make_iswap_gates():
 
 def _make_cphase_gates():
     return [
-        GateInfo(operator=Supported2QGate.ISWAP, parameters=["theta"], arguments=["_", "_"])
+        GateInfo(operator=Supported2QGate.CPHASE, parameters=["theta"], arguments=["_", "_"])
     ]
 
 

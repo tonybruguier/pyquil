@@ -2,8 +2,10 @@ import numpy as np
 import pytest
 import json
 import os
+from pathlib import Path
 from requests import RequestException
 
+from qcs_api_client.client._configuration import QCSClientConfiguration
 from qcs_api_client.models import InstructionSetArchitecture
 from pyquil.api import (
     QVMConnection,
@@ -11,7 +13,7 @@ from pyquil.api import (
     Client,
     BenchmarkConnection,
 )
-from pyquil.device import QCSDevice
+from pyquil.device import QCSDevice, CompilerDevice
 from pyquil.device.graph import (
     DEFAULT_1Q_GATES, DEFAULT_2Q_GATES, _transform_edge_operation_to_gates, _transform_qubit_operation_to_gates,
 )
@@ -25,6 +27,9 @@ from pyquil.quil import Program
 from pyquil.tests.utils import DummyCompiler
 
 
+DIR_PATH = os.path.dirname(os.path.realpath(__file__))
+
+
 @pytest.fixture
 def compiler_isa():
     gates_1q = []
@@ -33,7 +38,7 @@ def compiler_isa():
     gates_2q = []
     for gate in DEFAULT_2Q_GATES:
         gates_2q.extend(_transform_edge_operation_to_gates(gate))
-    return CompilerISA.parse_obj({
+    isa = CompilerISA.parse_obj({
         "1Q": {
             "0": {"id": 0, "gates": gates_1q},
             "1": {"id": 1, "gates": gates_1q},
@@ -47,6 +52,12 @@ def compiler_isa():
             "0-3": {"ids": [0, 3], "dead": True},
         },
     })
+    return isa
+
+
+@pytest.fixture()
+def compiler_device(compiler_isa):
+    return CompilerDevice(isa=compiler_isa)
 
 
 @pytest.fixture
@@ -147,10 +158,11 @@ def qvm(client: Client):
 
 
 @pytest.fixture()
-def compiler(qcs_aspen8_device, client: Client):
+def compiler(compiler_device, compiler_isa, client: Client):
     try:
-        compiler = QVMCompiler(device=qcs_aspen8_device, client=client, timeout=1)
-        compiler.quil_to_native_quil(Program(I(0)))
+        compiler = QVMCompiler(device=compiler_device, client=client, timeout=1)
+        program = Program(I(0))
+        compiler.quil_to_native_quil(program)
         return compiler
     except (RequestException, QuilcNotRunning, UnknownApiError, TimeoutError) as e:
         return pytest.skip("This test requires compiler connection: {}".format(e))
@@ -165,7 +177,11 @@ def dummy_compiler(qcs_aspen8_device: QCSDevice, client: Client):
 
 @pytest.fixture(scope="session")
 def client():
-    return Client()
+    configuration = QCSClientConfiguration.load(
+        secrets_file_path=Path(f"{DIR_PATH}/tests/data/qcs_secrets.toml"),
+        settings_file_path=Path(f"{DIR_PATH}/tests/data/qcs_settings.toml"),
+    )
+    return Client(configuration=configuration)
 
 
 @pytest.fixture(scope="session")

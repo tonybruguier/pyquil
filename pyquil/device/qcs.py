@@ -1,6 +1,7 @@
 from qcs_api_client.models import InstructionSetArchitecture, Characteristic
 from pyquil.contrib.rpcq import CompilerISA, add_edge, add_qubit, get_qubit, get_edge
 from pyquil.device._base import AbstractDevice
+from pyquil.device.graph import AbstractDevice, DEFAULT_1Q_GATES
 from pyquil.noise import NoiseModel
 import networkx as nx
 import numpy as np
@@ -40,7 +41,10 @@ def _transform_qcs_isa_to_compiler_isa(isa: InstructionSetArchitecture) -> Compi
     device = CompilerISA()
     # QUESTION: Should we include qubits and edges that have no operations?
     for node in isa.architecture.nodes:
-        add_qubit(device, node.node_id)
+        qubit = add_qubit(device, node.node_id)
+
+        for gate in DEFAULT_1Q_GATES:
+            qubit.gates.extend(_transform_qubit_operation_to_gates(gate, qubit.id, []))
 
     for edge in isa.architecture.edges:
         add_edge(device, edge.node_ids[0], edge.node_ids[1])
@@ -104,7 +108,7 @@ def _make_measure_gates(node_id: int, characteristics: List[Characteristic]):
 def _make_rx_gates(node_id: int, characteristics: List[Characteristic]):
     default_duration = _operation_names_to_compiler_duration_default[Supported1QGate.RX]
 
-    default_fidelity = _operation_names_to_compiler_duration_default[Supported1QGate.RX]
+    default_fidelity = _operation_names_to_compiler_fidelity_default[Supported1QGate.RX]
     fidelity = default_fidelity
     for characteristic in characteristics:
         if characteristic.name == "f1QRB":
