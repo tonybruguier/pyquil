@@ -19,6 +19,20 @@ Changelog
 - `QVMCompiler` now produces a `Program` instead of a `PyQuilExecutableResponse`. As a result, `QVM.load()` always
   only accepts a `Program`, and `QVM.requires_executable` has been removed.
   
+- Move compiler/ RPCQ models to `external/rpcq.py`, including `CompilerISA`. Eventually, we will move these into the RPCQ package.
+
+- Replace intermediary `Qubit.type` with an explicit list of gates that the client may pass to the compiler without further transformation.
+
+- Drop the intermediary `ISA` class. Rely exclusively on `CompilerISA` as a carrier of instruction set architecture information. 
+
+- Support `AbstractDevice`'s derived from QCS `InstructionSetArchitecture`, `CompilerISA`, and `nx.Graph`.
+
+- Drop `gates_in_isa` and refactor as an internal function for preparing a list of `pyquil.Gate`'s that the user may use to initialize a `NoiseModel` based on the underlying `CompilerISA`.
+
+
+
+ 
+  
 ### Bugfixes
 
 [next](https://github.com/rigetti/pyquil/compare/v2.28.0..master) (In development)
