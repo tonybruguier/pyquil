@@ -1,6 +1,4 @@
-from pyquil.external.rpcq import (
-    make_edge_id,
-)
+from pyquil.external.rpcq import make_edge_id
 from pyquil.device import QCSDevice
 from pyquil.device.transformers import qcs_isa_to_compiler_isa
 from pyquil.noise import NoiseModel

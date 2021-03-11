@@ -27,9 +27,9 @@ Changelog
 
 - Support `AbstractDevice`'s derived from QCS `InstructionSetArchitecture`, `CompilerISA`, and `nx.Graph`.
 
+- Drop `api._quantum_processors`. Move `get_device` to `pyquil.device.qcs.get_qcs_device`.
+
 - Drop `gates_in_isa` and refactor as an internal function for preparing a list of `pyquil.Gate`'s that the user may use to initialize a `NoiseModel` based on the underlying `CompilerISA`.
-
-
 
  
   

@@ -45,9 +45,8 @@ from pyquil.api._error_reporting import _record_call
 from pyquil.api._abstract_compiler import AbstractCompiler, QuantumExecutable
 from pyquil.api._qam import QAM
 from pyquil.api._qpu import QPU
-from pyquil.api._quantum_processors import get_device
 from pyquil.api._qvm import QVM
-from pyquil.device import AbstractDevice, QCSDevice, NxDevice
+from pyquil.device import AbstractDevice, QCSDevice, NxDevice, get_qcs_device
 from pyquil.experiment._main import Experiment
 from pyquil.experiment._memory import merge_memory_map_lists
 from pyquil.experiment._result import ExperimentResult, bitstrings_to_expectations
@@ -882,7 +881,7 @@ def get_qc(
         )
 
     # 4. Not a special case, query the web for information about this device.
-    device = get_device(client, prefix)
+    device = get_qcs_device(client, prefix)
     if qvm_type is not None:
         # 4.1 QVM based on a real device.
         return _get_qvm_based_on_real_device(

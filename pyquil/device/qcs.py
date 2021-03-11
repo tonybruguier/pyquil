@@ -1,8 +1,10 @@
 from qcs_api_client.models import InstructionSetArchitecture
+from qcs_api_client.operations.sync import get_instruction_set_architecture
 from pyquil.external.rpcq import CompilerISA
-from pyquil.device.graph import AbstractDevice
-from pyquil.noise import NoiseModel
 from pyquil.device.transformers import qcs_isa_to_compiler_isa, qcs_isa_to_graph
+from pyquil.device import AbstractDevice
+from pyquil.noise import NoiseModel
+from pyquil.api import Client
 import networkx as nx
 from typing import List, Optional
 
@@ -51,3 +53,11 @@ class QCSDevice(AbstractDevice):
 
     def __repr__(self) -> str:
         return str(self)
+
+
+def get_qcs_device(client: Client, quantum_processor_id: str) -> QCSDevice:
+    isa = client.qcs_request(
+        get_instruction_set_architecture, quantum_processor_id=quantum_processor_id
+    )
+
+    return QCSDevice(quantum_processor_id=quantum_processor_id, isa=isa)
