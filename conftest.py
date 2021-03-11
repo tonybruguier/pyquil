@@ -20,7 +20,7 @@ from pyquil.device.graph import (
 from pyquil.api._errors import UnknownApiError
 from pyquil.api._abstract_compiler import QuilcNotRunning, QuilcVersionMismatch
 from pyquil.api._qvm import QVMNotRunning, QVMVersionMismatch
-from pyquil.external.rpcq import CompilerISA, GateInfo
+from pyquil.external.rpcq import CompilerISA
 from pyquil.gates import I
 from pyquil.paulis import sX
 from pyquil.quil import Program
@@ -31,14 +31,19 @@ DIR_PATH = os.path.dirname(os.path.realpath(__file__))
 
 
 @pytest.fixture
-def compiler_isa():
+def compiler_isa() -> CompilerISA:
+    """
+    Configures an arbitrary ``CompilerISA`` that may be used to initialize
+    a ``CompilerDevice``. Developers should create specific test cases of
+    ``CompilerISA`` as separate fixtures in conftest.py or in the test file.
+    """
     gates_1q = []
     for gate in DEFAULT_1Q_GATES:
         gates_1q.extend(_transform_qubit_operation_to_gates(gate))
     gates_2q = []
     for gate in DEFAULT_2Q_GATES:
         gates_2q.extend(_transform_edge_operation_to_gates(gate))
-    isa = CompilerISA.parse_obj({
+    return CompilerISA.parse_obj({
         "1Q": {
             "0": {"id": 0, "gates": gates_1q},
             "1": {"id": 1, "gates": gates_1q},
@@ -47,74 +52,52 @@ def compiler_isa():
         },
         "2Q": {
             "0-1": {"ids": [0, 1], "gates": gates_2q},
-            "1-2": {"ids": [1, 2], "gates": [GateInfo(operator="ISWAP", parameters=[], arguments=["_", "_"])]},
-            "0-2": {"ids": [0, 2], "gates": [GateInfo(operator="CPHASE", parameters=["theta"], arguments=["_", "_"])]},
+            "1-2": {
+                "ids": [1, 2],
+                "gates": [
+                    {
+                        "operator_type": "gate",
+                        "operator": "ISWAP",
+                        "parameters": [],
+                        "arguments": ["_", "_"],
+                    }
+                ]
+            },
+            "0-2": {
+                "ids": [0, 2],
+                "gates": [
+                    {
+                        "operator_type": "gate",
+                        "operator": "CPHASE",
+                        "parameters": ["theta"],
+                        "arguments": ["_", "_"],
+                    },
+                ]
+            },
             "0-3": {"ids": [0, 3], "dead": True},
         },
     })
-    return isa
 
 
 @pytest.fixture()
-def compiler_device(compiler_isa):
+def compiler_device(compiler_isa) -> CompilerDevice:
     return CompilerDevice(isa=compiler_isa)
 
 
 @pytest.fixture
-def qcs_aspen8_isa():
+def qcs_aspen8_isa() -> InstructionSetArchitecture:
+    """
+    Read the Aspen-8 QCS InstructionSetArchitecture from file and load it into
+    the ``InstructionSetArchitecture`` QCS API client model.
+    """
     dir_path = os.path.dirname(os.path.realpath(__file__))
     with open(f"{dir_path}/pyquil/tests/data/qcs-isa-Aspen-8.json") as f:
         return InstructionSetArchitecture.from_dict(json.load(f))
 
 
 @pytest.fixture
-def specs_dict():
-    return {
-        "1Q": {
-            "0": {
-                "f1QRB": 0.99,
-                "f1QRB_std_err": 0.01,
-                "f1Q_simultaneous_RB": 0.98,
-                "f1Q_simultaneous_RB_std_err": 0.02,
-                "fRO": 0.93,
-                "T1": 20e-6,
-                "T2": 15e-6,
-            },
-            "1": {
-                "f1QRB": 0.989,
-                "f1QRB_std_err": 0.011,
-                "f1Q_simultaneous_RB": 0.979,
-                "f1Q_simultaneous_RB_std_err": 0.021,
-                "fRO": 0.92,
-                "T1": 19e-6,
-                "T2": 12e-6,
-            },
-            "2": {
-                "f1QRB": 0.983,
-                "f1QRB_std_err": 0.017,
-                "f1Q_simultaneous_RB": 0.973,
-                "f1Q_simultaneous_RB_std_err": 0.027,
-                "fRO": 0.95,
-                "T1": 21e-6,
-                "T2": 16e-6,
-            },
-            "3": {
-                "f1QRB": 0.988,
-                "f1QRB_std_err": 0.012,
-                "f1Q_simultaneous_RB": 0.978,
-                "f1Q_simultaneous_RB_std_err": 0.022,
-                "fRO": 0.94,
-                "T1": 18e-6,
-                "T2": 11e-6,
-            },
-        },
-        "2Q": {
-            "0-1": {"fBellState": 0.90, "fCZ": 0.89, "fCZ_std_err": 0.01, "fCPHASE": 0.88},
-            "1-2": {"fBellState": 0.91, "fCZ": 0.90, "fCZ_std_err": 0.12, "fCPHASE": 0.89},
-            "0-2": {"fBellState": 0.92, "fCZ": 0.91, "fCZ_std_err": 0.20, "fCPHASE": 0.90},
-            "0-3": {"fBellState": 0.89, "fCZ": 0.88, "fCZ_std_err": 0.03, "fCPHASE": 0.87},
-        },
-    }
+def qcs_aspen8_device(qcs_aspen8_isa) -> QCSDevice:
+    return QCSDevice(quantum_processor_id="Aspen-8", isa=qcs_aspen8_isa)
 
 
 @pytest.fixture
@@ -140,11 +123,6 @@ def noise_model_dict():
     }
 
 
-@pytest.fixture
-def qcs_aspen8_device(qcs_aspen8_isa):
-    return QCSDevice(quantum_processor_id="Aspen-8", isa=qcs_aspen8_isa)
-
-
 @pytest.fixture(scope="session")
 def qvm(client: Client):
     try:
@@ -158,7 +136,7 @@ def qvm(client: Client):
 
 
 @pytest.fixture()
-def compiler(compiler_device, compiler_isa, client: Client):
+def compiler(compiler_device, client: Client):
     try:
         compiler = QVMCompiler(device=compiler_device, client=client, timeout=1)
         program = Program(I(0))
@@ -176,12 +154,16 @@ def dummy_compiler(qcs_aspen8_device: QCSDevice, client: Client):
 
 
 @pytest.fixture(scope="session")
-def client():
-    configuration = QCSClientConfiguration.load(
+def qcs_client_configuration() -> QCSClientConfiguration:
+    return QCSClientConfiguration.load(
         secrets_file_path=Path(f"{DIR_PATH}/tests/data/qcs_secrets.toml"),
         settings_file_path=Path(f"{DIR_PATH}/tests/data/qcs_settings.toml"),
     )
-    return Client(configuration=configuration)
+
+
+@pytest.fixture(scope="session")
+def client(qcs_client_configuration) -> Client:
+    return Client(configuration=qcs_client_configuration)
 
 
 @pytest.fixture(scope="session")
