@@ -1,10 +1,10 @@
 from qcs_api_client.models import InstructionSetArchitecture, Characteristic
-from pyquil.contrib.rpcq import CompilerISA, add_edge, add_qubit, get_qubit, get_edge
+from pyquil.external.rpcq import CompilerISA, add_edge, add_qubit, get_qubit, get_edge
 from pyquil.device.graph import AbstractDevice, DEFAULT_1Q_GATES
 from pyquil.noise import NoiseModel
 import networkx as nx
 import numpy as np
-from pyquil.contrib.rpcq import GateInfo, MeasureInfo, Supported1QGate, Supported2QGate
+from pyquil.external.rpcq import GateInfo, MeasureInfo, Supported1QGate, Supported2QGate
 from typing import List, Union, Optional, cast
 import logging
 

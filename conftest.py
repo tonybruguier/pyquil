@@ -20,7 +20,7 @@ from pyquil.device.graph import (
 from pyquil.api._errors import UnknownApiError
 from pyquil.api._abstract_compiler import QuilcNotRunning, QuilcVersionMismatch
 from pyquil.api._qvm import QVMNotRunning, QVMVersionMismatch
-from pyquil.contrib.rpcq import CompilerISA, GateInfo
+from pyquil.external.rpcq import CompilerISA, GateInfo
 from pyquil.gates import I
 from pyquil.paulis import sX
 from pyquil.quil import Program

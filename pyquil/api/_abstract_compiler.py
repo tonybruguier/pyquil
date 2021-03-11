@@ -23,7 +23,7 @@ from rpcq.messages import (
     ParameterAref,
 )
 
-from pyquil.contrib.rpcq import compiler_isa_to_target_device
+from pyquil.external.rpcq import compiler_isa_to_target_device
 from pyquil.api import Client
 from pyquil.api._error_reporting import _record_call
 from pyquil.device import AbstractDevice

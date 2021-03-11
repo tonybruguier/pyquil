@@ -3,7 +3,7 @@ from typing import Any, Tuple, Union
 import numpy as np
 from pyquil.device._base import AbstractDevice
 from typing import List, Optional, cast
-from pyquil.contrib.rpcq import (
+from pyquil.external.rpcq import (
     GateInfo,
     MeasureInfo,
     Supported1QGate,

@@ -24,7 +24,7 @@ from typing import List, Dict, Tuple, Iterator, Mapping, Optional, Sequence, Set
 
 import networkx as nx
 import numpy as np
-from pyquil.contrib.rpcq import CompilerISA
+from pyquil.external.rpcq import CompilerISA
 
 from qcs_api_client.models import ListQuantumProcessorsResponse
 from qcs_api_client.operations.sync import list_quantum_processors

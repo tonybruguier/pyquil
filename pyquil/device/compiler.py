@@ -1,7 +1,7 @@
 from pyquil.device._base import AbstractDevice
 from typing import List
 from pyquil.device.graph import compiler_isa_to_graph
-from pyquil.contrib.rpcq import CompilerISA
+from pyquil.external.rpcq import CompilerISA
 
 import networkx as nx
 

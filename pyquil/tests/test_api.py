@@ -22,7 +22,7 @@ import pytest
 from pytest_httpx import HTTPXMock
 
 from pyquil.api import QVMConnection
-from pyquil.contrib.rpcq import _compiler_isa_from_dict
+from pyquil.external.rpcq import _compiler_isa_from_dict
 from pyquil.gates import CNOT, H, MEASURE, PHASE, Z, RZ, RX, CZ
 from pyquil.paulis import PauliTerm
 from pyquil.quil import Program

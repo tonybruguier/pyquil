@@ -15,7 +15,7 @@
 ##############################################################################
 from abc import ABC, abstractmethod
 from typing import List, Iterable
-from pyquil.contrib.rpcq import CompilerISA, Supported1QGate, Supported2QGate, GateInfo
+from pyquil.external.rpcq import CompilerISA, Supported1QGate, Supported2QGate, GateInfo
 from pyquil.quilbase import Gate, ParameterDesignator
 from pyquil.quilatom import Parameter, unpack_qubit
 import logging
