@@ -20,7 +20,7 @@ from pyquil.api._quantum_computer import (
     _consolidate_symmetrization_outputs,
     _check_min_num_trials_for_symmetrized_readout,
 )
-from pyquil.device import NxDevice, gates_in_isa
+from pyquil.device import NxDevice
 from pyquil.gates import CNOT, H, I, MEASURE, RX, X
 from pyquil.noise import decoherence_noise_with_asymmetric_ro
 from pyquil.pyqvm import PyQVM
@@ -259,12 +259,7 @@ def test_run_pyqvm_noisy(client: Client):
 
 def test_readout_symmetrization(client: Client):
     device = NxDevice(nx.complete_graph(3))
-    compiler_isa = device.to_compiler_isa()
-    gates = gates_in_isa(compiler_isa)
-    print("GATES", len(gates), {gate.name for gate in gates}, gates)
-    qubits = {"-".join([str(qubit.index) for qubit in gate.qubits]) for gate in gates}
-    print("QUBITS", len(qubits), qubits)
-    noise_model = decoherence_noise_with_asymmetric_ro(gates=gates)
+    noise_model = decoherence_noise_with_asymmetric_ro(device.to_compiler_isa())
     qc = QuantumComputer(
         name="testy!",
         qam=QVM(client=client, noise_model=noise_model),

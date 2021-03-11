@@ -1,11 +1,10 @@
 import numpy as np
-
-from pyquil.device import gates_in_isa, THETA
 from pyquil.gates import RZ, RX, I, CZ, ISWAP, CPHASE
+from pyquil.noise_gates import _get_qvm_noise_supported_gates, THETA
 
 
 def test_gates_in_isa(compiler_isa):
-    gates = gates_in_isa(compiler_isa)
+    gates = _get_qvm_noise_supported_gates(compiler_isa)
     for q in [0, 1, 2]:
         for g in [
             I(q),

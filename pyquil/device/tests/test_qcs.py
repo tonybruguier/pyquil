@@ -1,8 +1,9 @@
 import numpy as np
 
-from pyquil.device import QCSDevice, gates_in_isa, THETA
+from pyquil.device import QCSDevice
 from pyquil.noise import NoiseModel
 from pyquil.gates import RZ, RX, CZ
+from pyquil.noise_gates import _get_qvm_noise_supported_gates, THETA
 
 DEVICE_FIXTURE_NAME = "mixed_architecture_chip"
 
@@ -21,7 +22,7 @@ def test_qcs_device(qcs_aspen8_isa, noise_model_dict):
     assert device.noise_model == noise_model
 
     compiler_isa = device.to_compiler_isa()
-    gates = gates_in_isa(compiler_isa)
+    gates = _get_qvm_noise_supported_gates(compiler_isa)
 
     for q in range(len(device._isa.architecture.nodes)):
         if q not in ASPEN_8_QUBITS_NO_RX:

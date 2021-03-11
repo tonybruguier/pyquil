@@ -20,11 +20,21 @@ import subprocess
 import warnings
 from contextlib import contextmanager
 from math import pi, log
-from typing import List, Dict, Tuple, Iterator, Mapping, Optional, Sequence, Set, Union, cast
+from typing import (
+    Dict,
+    Tuple,
+    Iterator,
+    Mapping,
+    Optional,
+    Sequence,
+    Set,
+    Union,
+    cast,
+    List,
+)
 
 import networkx as nx
 import numpy as np
-from pyquil.external.rpcq import CompilerISA
 
 from qcs_api_client.models import ListQuantumProcessorsResponse
 from qcs_api_client.operations.sync import list_quantum_processors
@@ -37,7 +47,7 @@ from pyquil.api._qam import QAM
 from pyquil.api._qpu import QPU
 from pyquil.api._quantum_processors import get_device
 from pyquil.api._qvm import QVM
-from pyquil.device import AbstractDevice, QCSDevice, NxDevice, gates_in_isa
+from pyquil.device import AbstractDevice, QCSDevice, NxDevice
 from pyquil.experiment._main import Experiment
 from pyquil.experiment._memory import merge_memory_map_lists
 from pyquil.experiment._result import ExperimentResult, bitstrings_to_expectations
@@ -48,6 +58,7 @@ from pyquil.paulis import PauliTerm
 from pyquil.pyqvm import PyQVM
 from pyquil.quil import Program, validate_supported_quil
 from pyquil.quilatom import qubit_index
+from pyquil.external.rpcq import CompilerISA
 
 
 class QuantumComputer:
@@ -652,7 +663,7 @@ def _get_qvm_with_topology(
     device = NxDevice(topology=topology)
     if noisy:
         noise_model: Optional[NoiseModel] = decoherence_noise_with_asymmetric_ro(
-            gates=gates_in_isa(device.to_compiler_isa()),
+            isa=device.to_compiler_isa()
         )
     else:
         noise_model = None
