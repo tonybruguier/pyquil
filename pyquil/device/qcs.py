@@ -52,7 +52,6 @@ class QCSISAParseError(ValueError):
 
 def _transform_qcs_isa_to_compiler_isa(isa: InstructionSetArchitecture) -> CompilerISA:
     device = CompilerISA()
-    # QUESTION: Should we include qubits and edges that have no operations?
     for node in isa.architecture.nodes:
         add_qubit(device, node.node_id)
 
@@ -80,7 +79,6 @@ def _transform_qcs_isa_to_compiler_isa(isa: InstructionSetArchitecture) -> Compi
                     continue
                 qubit_operations_seen[operation_qubit.id].add(operation.name)
 
-                # QUESTION: Need to check against redundant gates here?
                 operation_qubit.gates.extend(
                     _transform_qubit_operation_to_gates(
                         operation.name, operation_qubit.id, site.characteristics
@@ -239,8 +237,7 @@ def _transform_qubit_operation_to_gates(
         # QUESTION: Doesn't seem to be existing support for reset operation
         return []
     else:
-        # QUESTION: Log error here? Include parameter for hard or soft failure?
-        raise ValueError("Unknown qubit operation: {}".format(operation_name))
+        raise QCSISAParseError("Unsupported qubit operation: {}".format(operation_name))
 
 
 def _make_cz_gates(characteristics: List[Characteristic]) -> List[GateInfo]:
@@ -353,4 +350,4 @@ def _transform_edge_operation_to_gates(
     elif operation_name == Supported2QGate.WILDCARD:
         return _make_wildcard_2q_gates()
     else:
-        raise ValueError("Unknown edge operation: {}".format(operation_name))
+        raise QCSISAParseError("Unsupported edge operation: {}".format(operation_name))
