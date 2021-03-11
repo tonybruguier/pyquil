@@ -1,11 +1,12 @@
 from qcs_api_client.models import InstructionSetArchitecture, Characteristic
 from pyquil.external.rpcq import CompilerISA, add_edge, add_qubit, get_qubit, get_edge
-from pyquil.device.graph import AbstractDevice, DEFAULT_1Q_GATES
+from pyquil.device.graph import AbstractDevice
 from pyquil.noise import NoiseModel
 import networkx as nx
 import numpy as np
 from pyquil.external.rpcq import GateInfo, MeasureInfo, Supported1QGate, Supported2QGate
-from typing import List, Union, Optional, cast
+from typing import List, Union, Optional, cast, DefaultDict, Set
+from collections import defaultdict
 import logging
 
 _log = logging.getLogger(__name__)
@@ -46,18 +47,16 @@ def _transform_qcs_isa_to_compiler_isa(isa: InstructionSetArchitecture) -> Compi
     device = CompilerISA()
     # QUESTION: Should we include qubits and edges that have no operations?
     for node in isa.architecture.nodes:
-        qubit = add_qubit(device, node.node_id)
-
-        for gate in DEFAULT_1Q_GATES:
-            qubit.gates.extend(_transform_qubit_operation_to_gates(gate, qubit.id, []))
+        add_qubit(device, node.node_id)
 
     for edge in isa.architecture.edges:
         add_edge(device, edge.node_ids[0], edge.node_ids[1])
 
+    qubit_operations_seen: DefaultDict[int, Set[str]] = defaultdict(set)
+    edge_operations_seen: DefaultDict[str, Set[str]] = defaultdict(set)
     for operation in isa.instructions:
         for site in operation.sites:
             if operation.node_count == 1:
-                # QUESTION: This used to return a default set of gates for a qubit.
                 if len(site.node_ids) != 1:
                     _log.warning(
                         f"operation {operation.name} has node count 1, but "
@@ -71,6 +70,11 @@ def _transform_qcs_isa_to_compiler_isa(isa: InstructionSetArchitecture) -> Compi
                         f"but node not declared in architecture"
                     )
                     continue
+
+                if operation.name in qubit_operations_seen[operation_qubit.id]:
+                    continue
+                qubit_operations_seen[operation_qubit.id].add(operation.name)
+
                 # QUESTION: Need to check against redundant gates here?
                 operation_qubit.gates.extend(
                     _transform_qubit_operation_to_gates(
@@ -92,6 +96,12 @@ def _transform_qcs_isa_to_compiler_isa(isa: InstructionSetArchitecture) -> Compi
                         f"not declared in architecture"
                     )
                     continue
+
+                edge_id = "-".join([str(node_id) for node_id in sorted(edge.node_ids)])
+                if operation.name in edge_operations_seen[edge_id]:
+                    continue
+                edge_operations_seen[edge_id].add(operation.name)
+
                 operation_edge.gates.extend(
                     _transform_edge_operation_to_gates(operation.name, site.characteristics)
                 )
