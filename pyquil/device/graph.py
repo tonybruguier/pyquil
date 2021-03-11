@@ -124,6 +124,7 @@ class GraphGateError(ValueError):
     Signals an error when creating a ``CompilerISA`` from an ``nx.Graph``.
     This may raise as a consequence of unsupported gates.
     """
+
     pass
 
 

@@ -67,6 +67,7 @@ class QCSISAParseError(ValueError):
     in the QCS ``InstructionSetArchitecture``. This may raise as a consequence
     of unsupported gates as well as missing nodes or edges.
     """
+
     pass
 
 
