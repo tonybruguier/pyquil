@@ -9,7 +9,7 @@ from pyquil.external.rpcq import (
     MeasureInfo,
     Supported1QGate,
     Supported2QGate,
-    _make_edge_id,
+    make_edge_id,
 )
 from typing import List, Union, Optional, cast, DefaultDict, Set
 from collections import defaultdict
@@ -113,7 +113,7 @@ def _transform_qcs_isa_to_compiler_isa(isa: InstructionSetArchitecture) -> Compi
                     )
 
                 operation_edge = get_edge(device, site.node_ids[0], site.node_ids[1])
-                edge_id = _make_edge_id(site.node_ids[0], site.node_ids[1])
+                edge_id = make_edge_id(site.node_ids[0], site.node_ids[1])
                 if operation_edge is None:
                     raise QCSISAParseError(
                         f"operation {operation.name} has site {site.node_ids}, but edge {edge_id} "

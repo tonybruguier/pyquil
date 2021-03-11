@@ -65,19 +65,19 @@ def get_qubit(device: CompilerISA, node_id: int) -> Optional[Qubit]:
     return device.qubits.get(str(node_id))
 
 
-def _make_edge_id(qubit1: int, qubit2: int) -> str:
+def make_edge_id(qubit1: int, qubit2: int) -> str:
     return "-".join([str(qubit) for qubit in sorted([qubit1, qubit2])])
 
 
 def add_edge(device: CompilerISA, qubit1: int, qubit2: int) -> Edge:
-    edge_id = _make_edge_id(qubit1, qubit2)
+    edge_id = make_edge_id(qubit1, qubit2)
     if edge_id not in device.edges:
         device.edges[edge_id] = Edge(ids=sorted([qubit1, qubit2]))
     return device.edges[edge_id]
 
 
 def get_edge(device: CompilerISA, qubit1: int, qubit2: int) -> Optional[Edge]:
-    edge_id = _make_edge_id(qubit1, qubit2)
+    edge_id = make_edge_id(qubit1, qubit2)
     return device.edges.get(edge_id)
 
 
