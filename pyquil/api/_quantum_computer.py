@@ -107,12 +107,9 @@ class QuantumComputer:
 
     def to_compiler_isa(self) -> CompilerISA:
         """
-        Return a target ISA for this QuantumComputer's device.
+        Return a ``CompilerISA`` for this QuantumComputer's device.
 
-        See :py:func:`AbstractDevice.get_isa` for more.
-
-        :param oneq_type: The family of one-qubit gates to target
-        :param twoq_type: The family of two-qubit gates to target
+        See :py:func:`AbstractDevice.to_compiler_isa` for more.
         """
         return self.compiler.device.to_compiler_isa()
 

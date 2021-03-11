@@ -101,7 +101,7 @@ class AbstractCompiler(ABC):
     @_record_call
     def quil_to_native_quil(self, program: Program, *, protoquil: Optional[bool] = None) -> Program:
         """
-        Compile an arbitrary quil program according to the ISA of compiler_isa.
+        Compile an arbitrary quil program according to the ISA of ``self.device``.
 
         :param program: Arbitrary quil to compile
         :param protoquil: Whether to restrict to protoquil (``None`` means defer to server)
