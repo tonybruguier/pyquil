@@ -99,6 +99,10 @@ def compiler_isa_to_graph(device: CompilerISA) -> nx.Graph:
     return nx.from_edgelist([int(i) for i in edge.ids] for edge in device.edges.values())
 
 
+class GraphGateError(ValueError):
+    pass
+
+
 def _make_i_gates() -> List[GateInfo]:
     return [GateInfo(operator=Supported1QGate.I, parameters=[], arguments=["_"])]
 
@@ -111,8 +115,8 @@ def _make_measure_gates() -> List[MeasureInfo]:
 
 
 def _make_rx_gates() -> List[GateInfo]:
-    gates = [GateInfo(operator=Supported1QGate.RX, parameters=[0.0], arguments=["_"])]
-    for param in [np.pi, -np.pi, np.pi / 2, -np.pi / 2]:
+    gates = []
+    for param in [0.0, np.pi, -np.pi, np.pi / 2, -np.pi / 2]:
         gates.append(GateInfo(operator=Supported1QGate.RX, parameters=[param], arguments=["_"]))
     return gates
 
@@ -122,7 +126,7 @@ def _make_rz_gates() -> List[GateInfo]:
 
 
 def _make_wildcard_1q_gates() -> List[GateInfo]:
-    return [GateInfo(operator="_", parameters="_", arguments=["_"])]
+    return [GateInfo(operator="_", parameters=["_"], arguments=["_"])]
 
 
 def _transform_qubit_operation_to_gates(operation_name: str,) -> List[Union[GateInfo, MeasureInfo]]:
@@ -137,8 +141,7 @@ def _transform_qubit_operation_to_gates(operation_name: str,) -> List[Union[Gate
     elif operation_name == Supported1QGate.WILDCARD:
         return cast(List[Union[GateInfo, MeasureInfo]], _make_wildcard_1q_gates())
     else:
-        # QUESTION: Log error here? Include parameter for hard or soft failure?
-        raise ValueError("Unknown qubit operation: {}".format(operation_name))
+        raise GraphGateError("Unsupported graph qubit operation: {}".format(operation_name))
 
 
 def _make_cz_gates() -> List[GateInfo]:
@@ -158,7 +161,7 @@ def _make_xy_gates() -> List[GateInfo]:
 
 
 def _make_wildcard_2q_gates() -> List[GateInfo]:
-    return [GateInfo(operator="_", parameters="_", arguments=["_", "_"])]
+    return [GateInfo(operator="_", parameters=["_"], arguments=["_", "_"])]
 
 
 def _transform_edge_operation_to_gates(operation_name: str) -> List[GateInfo]:
@@ -173,4 +176,4 @@ def _transform_edge_operation_to_gates(operation_name: str) -> List[GateInfo]:
     elif operation_name == Supported2QGate.WILDCARD:
         return _make_wildcard_2q_gates()
     else:
-        raise ValueError("Unknown edge operation: {}".format(operation_name))
+        raise GraphGateError("Unsupported graph edge operation: {}".format(operation_name))
