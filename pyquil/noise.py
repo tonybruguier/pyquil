@@ -25,12 +25,8 @@ import sys
 from pyquil.external.rpcq import CompilerISA
 from pyquil.gates import I, MEASURE, X
 from pyquil.quilbase import Pragma, Gate
-from pyquil.quilatom import MemoryReference, format_parameter, ParameterDesignator, Parameter
+from pyquil.quilatom import MemoryReference, format_parameter, ParameterDesignator
 from pyquil.noise_gates import _get_qvm_noise_supported_gates
-import logging
-
-_log = logging.getLogger(__name__)
-THETA = Parameter("theta")
 
 if TYPE_CHECKING:
     from pyquil.quil import Program
