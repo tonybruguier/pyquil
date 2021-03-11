@@ -4,12 +4,15 @@ from pyquil.device.graph import AbstractDevice
 from pyquil.noise import NoiseModel
 import networkx as nx
 import numpy as np
-from pyquil.external.rpcq import GateInfo, MeasureInfo, Supported1QGate, Supported2QGate
+from pyquil.external.rpcq import (
+    GateInfo,
+    MeasureInfo,
+    Supported1QGate,
+    Supported2QGate,
+    _make_edge_id,
+)
 from typing import List, Union, Optional, cast, DefaultDict, Set
 from collections import defaultdict
-import logging
-
-_log = logging.getLogger(__name__)
 
 
 class QCSDevice(AbstractDevice):
@@ -43,6 +46,10 @@ class QCSDevice(AbstractDevice):
         return str(self)
 
 
+class QCSISAParseError(ValueError):
+    pass
+
+
 def _transform_qcs_isa_to_compiler_isa(isa: InstructionSetArchitecture) -> CompilerISA:
     device = CompilerISA()
     # QUESTION: Should we include qubits and edges that have no operations?
@@ -58,18 +65,16 @@ def _transform_qcs_isa_to_compiler_isa(isa: InstructionSetArchitecture) -> Compi
         for site in operation.sites:
             if operation.node_count == 1:
                 if len(site.node_ids) != 1:
-                    _log.warning(
+                    raise QCSISAParseError(
                         f"operation {operation.name} has node count 1, but "
                         f"site has {len(site.node_ids)} node_ids"
                     )
-                    continue
                 operation_qubit = get_qubit(device, site.node_ids[0])
                 if operation_qubit is None:
-                    _log.warning(
+                    raise QCSISAParseError(
                         f"operation {operation.name} has node {site.node_ids[0]} "
                         f"but node not declared in architecture"
                     )
-                    continue
 
                 if operation.name in qubit_operations_seen[operation_qubit.id]:
                     continue
@@ -84,20 +89,19 @@ def _transform_qcs_isa_to_compiler_isa(isa: InstructionSetArchitecture) -> Compi
 
             elif operation.node_count == 2:
                 if len(site.node_ids) != 2:
-                    _log.warning(
+                    QCSISAParseError(
                         f"operation {operation.name} has node count 2, but site "
                         f"has {len(site.node_ids)} node_ids"
                     )
-                    continue
+
                 operation_edge = get_edge(device, site.node_ids[0], site.node_ids[1])
+                edge_id = _make_edge_id(site.node_ids[0], site.node_ids[1])
                 if operation_edge is None:
-                    _log.warning(
-                        f"operation {operation.name} has site {site.node_ids} but edge "
+                    raise QCSISAParseError(
+                        f"operation {operation.name} has site {site.node_ids}, but edge {edge_id} "
                         f"not declared in architecture"
                     )
-                    continue
 
-                edge_id = "-".join([str(node_id) for node_id in sorted(edge.node_ids)])
                 if operation.name in edge_operations_seen[edge_id]:
                     continue
                 edge_operations_seen[edge_id].add(operation.name)
@@ -107,8 +111,10 @@ def _transform_qcs_isa_to_compiler_isa(isa: InstructionSetArchitecture) -> Compi
                 )
 
             else:
-                # QUESTION: Log error here? Include parameter for hard or soft failure?
-                _log.warning("unexpected operation node count: {}".format(operation.node_count))
+                raise QCSISAParseError(
+                    "unexpected operation node count: {}".format(operation.node_count)
+                )
+
     return device
 
 
@@ -208,7 +214,7 @@ def _make_wildcard_1q_gates(node_id: int) -> List[GateInfo]:
     return [
         GateInfo(
             operator="_",
-            parameters="_",
+            parameters=["_"],
             arguments=[node_id],
             fidelity=PERFECT_FIDELITY,
             duration=PERFECT_DURATION,
@@ -325,7 +331,7 @@ def _make_wildcard_2q_gates() -> List[GateInfo]:
     return [
         GateInfo(
             operator="_",
-            parameters="_",
+            parameters=["_"],
             arguments=["_", "_"],
             fidelity=PERFECT_FIDELITY,
             duration=PERFECT_DURATION,
