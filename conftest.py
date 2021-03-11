@@ -14,8 +14,9 @@ from pyquil.api import (
     BenchmarkConnection,
 )
 from pyquil.device import QCSDevice, CompilerDevice
-from pyquil.device.graph import (
-    DEFAULT_1Q_GATES, DEFAULT_2Q_GATES, _transform_edge_operation_to_gates, _transform_qubit_operation_to_gates,
+from pyquil.device.transformers.graph_to_compiler_isa import (
+    DEFAULT_1Q_GATES, DEFAULT_2Q_GATES,
+    _transform_edge_operation_to_gates, _transform_qubit_operation_to_gates,
 )
 from pyquil.api._errors import UnknownApiError
 from pyquil.api._abstract_compiler import QuilcNotRunning, QuilcVersionMismatch

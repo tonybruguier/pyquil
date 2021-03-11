@@ -1,11 +1,11 @@
 import networkx as nx
-from pyquil.device.graph import (
-    NxDevice,
-    compiler_isa_from_graph,
+from pyquil.device.transformers.graph_to_compiler_isa import (
     compiler_isa_to_graph,
     DEFAULT_2Q_GATES,
     DEFAULT_1Q_GATES,
 )
+from pyquil.device.transformers import graph_to_compiler_isa
+from pyquil.device.graph import NxDevice
 
 DEVICE_FIXTURE_NAME = "mixed_architecture_chip"
 
@@ -14,7 +14,7 @@ def test_isa_from_graph_order():
     # since node 16 appears first, even though we ask for the edge (15,16) the networkx internal
     # representation will have it as (16,15)
     fc = nx.from_edgelist([(16, 17), (15, 16)])
-    isa = compiler_isa_from_graph(fc)
+    isa = graph_to_compiler_isa(fc)
     isad = isa.dict(by_alias=True)
     for k in isad["2Q"]:
         q1, q2 = k.split("-")
