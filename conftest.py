@@ -86,13 +86,21 @@ def compiler_device(compiler_isa) -> CompilerDevice:
 
 
 @pytest.fixture
+def aspen8_compiler_isa() -> CompilerISA:
+    """
+    Read the Aspen-8 QCS ``CompilerISA`` from file. This should be an exact conversion of
+    qcs_aspen8_isa to a ``CompilerISA``.
+    """
+    return CompilerISA.parse_file(f"{DIR_PATH}/pyquil/tests/data/compiler-isa-Aspen-8.json")
+
+
+@pytest.fixture
 def qcs_aspen8_isa() -> InstructionSetArchitecture:
     """
     Read the Aspen-8 QCS InstructionSetArchitecture from file and load it into
     the ``InstructionSetArchitecture`` QCS API client model.
     """
-    dir_path = os.path.dirname(os.path.realpath(__file__))
-    with open(f"{dir_path}/pyquil/tests/data/qcs-isa-Aspen-8.json") as f:
+    with open(f"{DIR_PATH}/pyquil/tests/data/qcs-isa-Aspen-8.json") as f:
         return InstructionSetArchitecture.from_dict(json.load(f))
 
 
