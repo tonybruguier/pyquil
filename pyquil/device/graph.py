@@ -17,13 +17,10 @@ import networkx as nx
 
 
 class NxDevice(AbstractDevice):
-    """A shim over the AbstractDevice API backed by a NetworkX graph.
-
-    A ``Device`` holds information about the physical device.
-    Specifically, you might want to know about connectivity, available gates, performance specs,
-    and more. This class implements the AbstractDevice API for devices not available via
-    ``get_devices()``. Instead, the user is responsible for constructing a NetworkX
-    graph which represents a chip topology.
+    """
+    An AbstractDevice initialized with a user constructed NetworkX graph topology.
+    Notably, this class is able to serialize a ``CompilerISA`` based on the
+    graph topology and the configured 1Q and 2Q gates.
     """
 
     def __init__(
@@ -32,6 +29,13 @@ class NxDevice(AbstractDevice):
         gates_1q: Optional[List[str]] = None,
         gates_2q: Optional[List[str]] = None,
     ) -> None:
+        """
+        Initialize a new NxDevice.
+
+        :param topology: The graph topology of the device.
+        :param gates_1q: A list of 1Q gate names supported by all qubits in the device.
+        :param gates_2q: A list of 2Q gate names supported all edges in the device.
+        """
         self.topology = topology
         self.gates_1q = gates_1q
         self.gates_2q = gates_2q
@@ -40,6 +44,12 @@ class NxDevice(AbstractDevice):
         return self.topology
 
     def to_compiler_isa(self) -> CompilerISA:
+        """
+        Generate a ``CompilerISA`` object based on a NetworkX graph and the
+        ``gates_1q`` and ``gates_2q`` with which the device was initialized.
+
+        May raise ``GraphGateError`` if the specified gates are not supported.
+        """
         return compiler_isa_from_graph(
             self.topology, gates_1q=self.gates_1q, gates_2q=self.gates_2q
         )
@@ -67,7 +77,14 @@ def compiler_isa_from_graph(
     graph: nx.Graph, gates_1q: Optional[List[str]] = None, gates_2q: Optional[List[str]] = None
 ) -> CompilerISA:
     """
-    Generate an ISA object from a NetworkX graph.
+    Generate an ``CompilerISA`` object from a NetworkX graph and list of 1Q and 2Q gates.
+    May raise ``GraphGateError`` if the specified gates are not supported.
+
+    :param graph: The graph topology of the device.
+    :param gates_1q: A list of 1Q gate names to be applied to all qubits in the device.
+    Defaults to ``DEFAULT_1Q_GATES``.
+    :param gates_2q: A list of 2Q gate names to be applied to all edges in the device.
+    Defaults to ``DEFAULT_2Q_GATES``.
     """
     gates_1q = gates_1q or DEFAULT_1Q_GATES.copy()
     gates_2q = gates_2q or DEFAULT_2Q_GATES.copy()
@@ -95,11 +112,18 @@ def compiler_isa_from_graph(
     return device
 
 
-def compiler_isa_to_graph(device: CompilerISA) -> nx.Graph:
-    return nx.from_edgelist([int(i) for i in edge.ids] for edge in device.edges.values())
+def compiler_isa_to_graph(compiler_isa: CompilerISA) -> nx.Graph:
+    """
+    Generate an ``nx.Graph`` based on the qubits and edges of any ``CompilerISA``.
+    """
+    return nx.from_edgelist([int(i) for i in edge.ids] for edge in compiler_isa.edges.values())
 
 
 class GraphGateError(ValueError):
+    """
+    Signals an error when creating a ``CompilerISA`` from an ``nx.Graph``.
+    This may raise as a consequence of unsupported gates.
+    """
     pass
 
 

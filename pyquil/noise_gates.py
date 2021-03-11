@@ -11,6 +11,7 @@ THETA = Parameter("theta")
 def _get_qvm_noise_supported_gates(isa: CompilerISA) -> List[Gate]:
     """
     Generate the gate set associated with an ISA for which QVM noise is supported.
+
     :param isa: The instruction set architecture for a QPU.
     :return: A list of Gate objects encapsulating all gates compatible with the ISA.
     """

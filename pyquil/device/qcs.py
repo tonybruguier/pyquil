@@ -16,6 +16,12 @@ from collections import defaultdict
 
 
 class QCSDevice(AbstractDevice):
+    """
+    An AbstractDevice initialized with an ``InstructionSetArchitecture`` returned
+    from the QCS API. Notably, this class is able to serialize a ``CompilerISA`` based
+    on the architecture instructions.
+    """
+
     quantum_processor_id: str
     _isa: InstructionSetArchitecture
     noise_model: Optional[NoiseModel]
@@ -26,6 +32,15 @@ class QCSDevice(AbstractDevice):
         isa: InstructionSetArchitecture,
         noise_model: Optional[NoiseModel] = None,
     ):
+        """
+        Initialize a new QCSDevice.
+
+        :param quantum_processor_id: The id of the quantum processor.
+        :param isa: The QCS API ``InstructionSetArchitecture``.
+        :param noise_model: An optional ``NoiseModel`` for configuring a noisy device
+        on the ``QVM``.
+        """
+
         self.quantum_processor_id = quantum_processor_id
         self._isa = isa
         self.noise_model = noise_model
@@ -47,6 +62,11 @@ class QCSDevice(AbstractDevice):
 
 
 class QCSISAParseError(ValueError):
+    """
+    Signals an error when creating a ``CompilerISA`` due to the operators
+    in the QCS ``InstructionSetArchitecture``. This may raise as a consequence
+    of unsupported gates as well as missing nodes or edges.
+    """
     pass
 
 

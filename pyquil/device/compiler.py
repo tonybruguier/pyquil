@@ -7,6 +7,10 @@ import networkx as nx
 
 
 class CompilerDevice(AbstractDevice):
+    """
+    An AbstractDevice initialized with a user constructed ``CompilerISA``.
+    """
+
     _isa: CompilerISA
 
     def __init__(self, isa: CompilerISA) -> None:

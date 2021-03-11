@@ -20,6 +20,11 @@ from pyquil.external.rpcq import CompilerISA
 
 
 class AbstractDevice(ABC):
+    """
+    A generic interface describing the qubits, topology, and compiler representation
+    of any arbitrary device class.
+    """
+
     @abstractmethod
     def qubits(self) -> List[int]:
         """
