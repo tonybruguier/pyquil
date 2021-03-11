@@ -7,8 +7,6 @@ from pyquil.device.transformers.graph_to_compiler_isa import (
 from pyquil.device.transformers import graph_to_compiler_isa
 from pyquil.device.graph import NxDevice
 
-DEVICE_FIXTURE_NAME = "mixed_architecture_chip"
-
 
 def test_isa_from_graph_order():
     # since node 16 appears first, even though we ask for the edge (15,16) the networkx internal
@@ -21,18 +19,18 @@ def test_isa_from_graph_order():
         assert q1 < q2
 
 
-def test_isa_to_graph(compiler_isa):
+def test_compiler_isa_to_graph(compiler_isa):
     graph = compiler_isa_to_graph(compiler_isa)
     should_be = nx.from_edgelist([(0, 1), (1, 2), (0, 2), (0, 3)])
     assert nx.is_isomorphic(graph, should_be)
 
-
-def test_NxDevice(compiler_isa, noise_model_dict):
-    graph = compiler_isa_to_graph(compiler_isa)
     nx_device = NxDevice(graph)
-
     assert nx.is_isomorphic(graph, nx_device.qubit_topology())
-    isa = nx_device.to_compiler_isa()
+
+
+def test_graph_to_compiler_isa(compiler_isa, noise_model_dict):
+    graph = compiler_isa_to_graph(compiler_isa)
+    isa = graph_to_compiler_isa(graph)
 
     for _, qubit in isa.qubits.items():
         for gate in DEFAULT_1Q_GATES:
