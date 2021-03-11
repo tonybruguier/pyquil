@@ -2,7 +2,7 @@ from typing import Any, Tuple, Union
 
 import numpy as np
 from pyquil.device._base import AbstractDevice
-from typing import List, Optional
+from typing import List, Optional, cast
 from pyquil.contrib.rpcq import (
     GateInfo,
     MeasureInfo,
@@ -99,65 +99,65 @@ def compiler_isa_to_graph(device: CompilerISA) -> nx.Graph:
     return nx.from_edgelist([int(i) for i in edge.ids] for edge in device.edges.values())
 
 
-def _make_i_gates():
+def _make_i_gates() -> List[GateInfo]:
     return [GateInfo(operator=Supported1QGate.I, parameters=[], arguments=["_"])]
 
 
-def _make_measure_gates():
+def _make_measure_gates() -> List[MeasureInfo]:
     return [
         MeasureInfo(operator=Supported1QGate.MEASURE, qubit="_", target="_"),
         MeasureInfo(operator=Supported1QGate.MEASURE, qubit="_", target=None),
     ]
 
 
-def _make_rx_gates():
+def _make_rx_gates() -> List[GateInfo]:
     gates = [GateInfo(operator=Supported1QGate.RX, parameters=[0.0], arguments=["_"])]
     for param in [np.pi, -np.pi, np.pi / 2, -np.pi / 2]:
         gates.append(GateInfo(operator=Supported1QGate.RX, parameters=[param], arguments=["_"]))
     return gates
 
 
-def _make_rz_gates():
+def _make_rz_gates() -> List[GateInfo]:
     return [GateInfo(operator=Supported1QGate.RZ, parameters=["theta"], arguments=["_"])]
 
 
-def _make_wildcard_1q_gates():
+def _make_wildcard_1q_gates() -> List[GateInfo]:
     return [GateInfo(operator="_", parameters="_", arguments=["_"])]
 
 
 def _transform_qubit_operation_to_gates(operation_name: str,) -> List[Union[GateInfo, MeasureInfo]]:
     if operation_name == Supported1QGate.I:
-        return _make_i_gates()
+        return cast(List[Union[GateInfo, MeasureInfo]], _make_i_gates())
     elif operation_name == Supported1QGate.RX:
-        return _make_rx_gates()
+        return cast(List[Union[GateInfo, MeasureInfo]], _make_rx_gates())
     elif operation_name == Supported1QGate.RZ:
-        return _make_rz_gates()
+        return cast(List[Union[GateInfo, MeasureInfo]], _make_rz_gates())
     elif operation_name == Supported1QGate.MEASURE:
-        return _make_measure_gates()
+        return cast(List[Union[GateInfo, MeasureInfo]], _make_measure_gates())
     elif operation_name == Supported1QGate.WILDCARD:
-        return _make_wildcard_1q_gates()
+        return cast(List[Union[GateInfo, MeasureInfo]], _make_wildcard_1q_gates())
     else:
         # QUESTION: Log error here? Include parameter for hard or soft failure?
         raise ValueError("Unknown qubit operation: {}".format(operation_name))
 
 
-def _make_cz_gates():
+def _make_cz_gates() -> List[GateInfo]:
     return [GateInfo(operator=Supported2QGate.CZ, parameters=[], arguments=["_", "_"])]
 
 
-def _make_iswap_gates():
+def _make_iswap_gates() -> List[GateInfo]:
     return [GateInfo(operator=Supported2QGate.ISWAP, parameters=[], arguments=["_", "_"])]
 
 
-def _make_cphase_gates():
+def _make_cphase_gates() -> List[GateInfo]:
     return [GateInfo(operator=Supported2QGate.CPHASE, parameters=["theta"], arguments=["_", "_"])]
 
 
-def _make_xy_gates():
+def _make_xy_gates() -> List[GateInfo]:
     return [GateInfo(operator=Supported2QGate.XY, parameters=["theta"], arguments=["_", "_"])]
 
 
-def _make_wildcard_2q_gates():
+def _make_wildcard_2q_gates() -> List[GateInfo]:
     return [GateInfo(operator="_", parameters="_", arguments=["_", "_"])]
 
 

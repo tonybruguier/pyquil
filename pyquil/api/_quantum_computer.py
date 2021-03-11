@@ -893,7 +893,7 @@ def get_qc(
                 "is meant for controlling noise models on QVMs."
             )
 
-        qpu = QPU(processor_id=device.name, client=client)
+        qpu = QPU(processor_id=device.quantum_processor_id, client=client)
 
         compiler = QPUCompiler(
             processor_id=prefix, device=device, client=client, timeout=compiler_timeout,

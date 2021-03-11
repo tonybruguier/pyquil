@@ -5,7 +5,10 @@ from pyquil.noise import NoiseModel
 import networkx as nx
 import numpy as np
 from pyquil.contrib.rpcq import GateInfo, MeasureInfo, Supported1QGate, Supported2QGate
-from typing import List, Union, Optional
+from typing import List, Union, Optional, cast
+import logging
+
+_log = logging.getLogger(__name__)
 
 
 class QCSDevice(AbstractDevice):
@@ -55,23 +58,47 @@ def _transform_qcs_isa_to_compiler_isa(isa: InstructionSetArchitecture) -> Compi
         for site in operation.sites:
             if operation.node_count == 1:
                 # QUESTION: This used to return a default set of gates for a qubit.
-                qubit = get_qubit(device, site.node_ids[0])
+                if len(site.node_ids) != 1:
+                    _log.warning(
+                        f"operation {operation.name} has node count 1, but "
+                        f"site has {len(site.node_ids)} node_ids"
+                    )
+                    continue
+                operation_qubit = get_qubit(device, site.node_ids[0])
+                if operation_qubit is None:
+                    _log.warning(
+                        f"operation {operation.name} has node {site.node_ids[0]} "
+                        f"but node not declared in architecture"
+                    )
+                    continue
                 # QUESTION: Need to check against redundant gates here?
-                qubit.gates.extend(
+                operation_qubit.gates.extend(
                     _transform_qubit_operation_to_gates(
-                        operation.name, qubit.id, site.characteristics
+                        operation.name, operation_qubit.id, site.characteristics
                     )
                 )
 
             elif operation.node_count == 2:
-                edge = get_edge(device, site.node_ids[0], site.node_ids[1])
-                edge.gates.extend(
+                if len(site.node_ids) != 2:
+                    _log.warning(
+                        f"operation {operation.name} has node count 2, but site "
+                        f"has {len(site.node_ids)} node_ids"
+                    )
+                    continue
+                operation_edge = get_edge(device, site.node_ids[0], site.node_ids[1])
+                if operation_edge is None:
+                    _log.warning(
+                        f"operation {operation.name} has site {site.node_ids} but edge "
+                        f"not declared in architecture"
+                    )
+                    continue
+                operation_edge.gates.extend(
                     _transform_edge_operation_to_gates(operation.name, site.characteristics)
                 )
 
             else:
                 # QUESTION: Log error here? Include parameter for hard or soft failure?
-                raise ValueError("unexpected operation node count: {}".format(operation.node_count))
+                _log.warning("unexpected operation node count: {}".format(operation.node_count))
     return device
 
 
@@ -97,7 +124,7 @@ _operation_names_to_compiler_duration_default = {
 }
 
 
-def _make_measure_gates(node_id: int, characteristics: List[Characteristic]):
+def _make_measure_gates(node_id: int, characteristics: List[Characteristic]) -> List[MeasureInfo]:
     duration = _operation_names_to_compiler_duration_default[Supported1QGate.MEASURE]
     fidelity = _operation_names_to_compiler_fidelity_default[Supported1QGate.MEASURE]
     for characteristic in characteristics:
@@ -123,7 +150,7 @@ def _make_measure_gates(node_id: int, characteristics: List[Characteristic]):
     ]
 
 
-def _make_rx_gates(node_id: int, characteristics: List[Characteristic]):
+def _make_rx_gates(node_id: int, characteristics: List[Characteristic]) -> List[GateInfo]:
     default_duration = _operation_names_to_compiler_duration_default[Supported1QGate.RX]
 
     default_fidelity = _operation_names_to_compiler_fidelity_default[Supported1QGate.RX]
@@ -155,7 +182,7 @@ def _make_rx_gates(node_id: int, characteristics: List[Characteristic]):
     return gates
 
 
-def _make_rz_gates(node_id: int):
+def _make_rz_gates(node_id: int) -> List[GateInfo]:
     return [
         GateInfo(
             operator=Supported1QGate.RZ,
@@ -167,7 +194,7 @@ def _make_rz_gates(node_id: int):
     ]
 
 
-def _make_wildcard_1q_gates(node_id: int):
+def _make_wildcard_1q_gates(node_id: int) -> List[GateInfo]:
     return [
         GateInfo(
             operator="_",
@@ -183,22 +210,24 @@ def _transform_qubit_operation_to_gates(
     operation_name: str, node_id: int, characteristics: List[Characteristic],
 ) -> List[Union[GateInfo, MeasureInfo]]:
     if operation_name == Supported1QGate.RX:
-        return _make_rx_gates(node_id, characteristics)
+        return cast(List[Union[GateInfo, MeasureInfo]], _make_rx_gates(node_id, characteristics))
     elif operation_name == Supported1QGate.RZ:
-        return _make_rz_gates(node_id)
+        return cast(List[Union[GateInfo, MeasureInfo]], _make_rz_gates(node_id))
     elif operation_name == Supported1QGate.MEASURE:
-        return _make_measure_gates(node_id, characteristics)
+        return cast(
+            List[Union[GateInfo, MeasureInfo]], _make_measure_gates(node_id, characteristics)
+        )
     elif operation_name == Supported1QGate.WILDCARD:
-        return _make_wildcard_1q_gates(node_id)
+        return cast(List[Union[GateInfo, MeasureInfo]], _make_wildcard_1q_gates(node_id))
     elif operation_name in {"I", "RESET"}:
-        # FIXME: Doesn't seem to be existing support for reset operation
+        # QUESTION: Doesn't seem to be existing support for reset operation
         return []
     else:
         # QUESTION: Log error here? Include parameter for hard or soft failure?
         raise ValueError("Unknown qubit operation: {}".format(operation_name))
 
 
-def _make_cz_gates(characteristics: List[Characteristic]):
+def _make_cz_gates(characteristics: List[Characteristic]) -> List[GateInfo]:
     default_duration = _operation_names_to_compiler_duration_default[Supported2QGate.CZ]
 
     default_fidelity = _operation_names_to_compiler_fidelity_default[Supported2QGate.CZ]
@@ -219,7 +248,7 @@ def _make_cz_gates(characteristics: List[Characteristic]):
     ]
 
 
-def _make_iswap_gates(characteristics: List[Characteristic]):
+def _make_iswap_gates(characteristics: List[Characteristic]) -> List[GateInfo]:
     default_duration = _operation_names_to_compiler_duration_default[Supported2QGate.ISWAP]
 
     default_fidelity = _operation_names_to_compiler_fidelity_default[Supported2QGate.ISWAP]
@@ -240,7 +269,7 @@ def _make_iswap_gates(characteristics: List[Characteristic]):
     ]
 
 
-def _make_cphase_gates(characteristics: List[Characteristic]):
+def _make_cphase_gates(characteristics: List[Characteristic]) -> List[GateInfo]:
     default_duration = _operation_names_to_compiler_duration_default[Supported2QGate.CPHASE]
 
     default_fidelity = _operation_names_to_compiler_fidelity_default[Supported2QGate.CPHASE]
@@ -261,7 +290,7 @@ def _make_cphase_gates(characteristics: List[Characteristic]):
     ]
 
 
-def _make_xy_gates(characteristics: List[Characteristic]):
+def _make_xy_gates(characteristics: List[Characteristic]) -> List[GateInfo]:
     default_duration = _operation_names_to_compiler_duration_default[Supported2QGate.XY]
 
     default_fidelity = _operation_names_to_compiler_fidelity_default[Supported2QGate.XY]
@@ -282,7 +311,7 @@ def _make_xy_gates(characteristics: List[Characteristic]):
     ]
 
 
-def _make_wildcard_2q_gates():
+def _make_wildcard_2q_gates() -> List[GateInfo]:
     return [
         GateInfo(
             operator="_",
@@ -296,7 +325,7 @@ def _make_wildcard_2q_gates():
 
 def _transform_edge_operation_to_gates(
     operation_name: str, characteristics: List[Characteristic],
-) -> List[Union[GateInfo, MeasureInfo]]:
+) -> List[GateInfo]:
     if operation_name == Supported2QGate.CZ:
         return _make_cz_gates(characteristics)
     elif operation_name == Supported2QGate.ISWAP:

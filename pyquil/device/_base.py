@@ -14,9 +14,9 @@
 #    limitations under the License.
 ##############################################################################
 from abc import ABC, abstractmethod
-from typing import List
-from pyquil.contrib.rpcq import CompilerISA, Supported1QGate, Supported2QGate
-from pyquil.quilbase import Gate
+from typing import List, Iterable
+from pyquil.contrib.rpcq import CompilerISA, Supported1QGate, Supported2QGate, GateInfo
+from pyquil.quilbase import Gate, ParameterDesignator
 from pyquil.quilatom import Parameter, unpack_qubit
 import logging
 
@@ -60,8 +60,10 @@ def gates_in_isa(isa: CompilerISA) -> List[Gate]:
         for gate in q.gates:
             if gate.operator in {Supported1QGate.I, Supported1QGate.RX, Supported1QGate.RZ}:
                 # FIXME  this is ugly
+                assert isinstance(gate, GateInfo)
                 if len(gate.parameters) > 0 and gate.parameters[0] == 0.0:
                     continue
+                parameters: Iterable[ParameterDesignator] = []
                 if (
                     gate.operator == Supported1QGate.RZ
                     and len(gate.parameters) == 1
