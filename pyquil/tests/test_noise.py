@@ -151,8 +151,7 @@ def test_decoherence_noise():
     # check that headers have been embedded
     headers = _noise_model_program_header(m3)
     assert all(
-        (isinstance(i, Pragma) and i.command in ["ADD-KRAUS", "READOUT-POVM"])
-        or isinstance(i, DefGate)
+        (isinstance(i, Pragma) and i.command in ["ADD-KRAUS", "READOUT-POVM"]) or isinstance(i, DefGate)
         for i in headers
     )
     assert headers.out() in new_prog.out()

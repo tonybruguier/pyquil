@@ -151,10 +151,7 @@ class ISA:
 
         return {
             "1Q": {"{}".format(q.id): _maybe_configure(q, DEFAULT_QUBIT_TYPE) for q in self.qubits},
-            "2Q": {
-                "{}-{}".format(*edge.targets): _maybe_configure(edge, DEFAULT_EDGE_TYPE)
-                for edge in self.edges
-            },
+            "2Q": {"{}-{}".format(*edge.targets): _maybe_configure(edge, DEFAULT_EDGE_TYPE) for edge in self.edges},
         }
 
     @staticmethod
@@ -191,9 +188,7 @@ class ISA:
         )
 
 
-def convert_gate_type_to_gate_information(
-    gate_type: Union[str, List[str]]
-) -> List[Union[GateInfo, MeasureInfo]]:
+def convert_gate_type_to_gate_information(gate_type: Union[str, List[str]]) -> List[Union[GateInfo, MeasureInfo]]:
     if isinstance(gate_type, str):
         gate_type = [gate_type]
 
@@ -304,9 +299,7 @@ def isa_from_graph(
     all_qubits = list(range(max(graph.nodes) + 1))
     qubits = [Qubit(i, type=oneq_type, dead=i not in graph.nodes) for i in all_qubits]
     edges = [
-        Edge(
-            tuple(sorted((a, b))), type=["CZ", "XY"] if twoq_type is None else twoq_type, dead=False
-        )
+        Edge(tuple(sorted((a, b))), type=["CZ", "XY"] if twoq_type is None else twoq_type, dead=False)
         for a, b in graph.edges
     ]
     return ISA(qubits, edges)

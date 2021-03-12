@@ -166,9 +166,7 @@ def test_kraus_model(kraus_model_I_dict):
         gate=kraus_model_I_dict["gate"],
         params=kraus_model_I_dict["params"],
         targets=kraus_model_I_dict["targets"],
-        kraus_ops=[
-            KrausModel.unpack_kraus_matrix(kraus_op) for kraus_op in kraus_model_I_dict["kraus_ops"]
-        ],
+        kraus_ops=[KrausModel.unpack_kraus_matrix(kraus_op) for kraus_op in kraus_model_I_dict["kraus_ops"]],
         fidelity=kraus_model_I_dict["fidelity"],
     )
     d = km.to_dict()

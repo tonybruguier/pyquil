@@ -20,6 +20,8 @@ Changelog
   only accepts a `Program`, and `QVM.requires_executable` has been removed.
   
 - `get_benchmarker()` has been removed in favor of calling `BenchmarkConnection` constructor directly.
+
+- `pyquil.version.__version__` has been moved to `pyquil.__version__`.
   
 ### Bugfixes
 
